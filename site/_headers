@@ -1,0 +1,6 @@
+/trailer.mp4
+  Cache-Control: public, max-age=86400
+/og-image.png
+  Cache-Control: public, max-age=86400
+/trailer/og-trailer.png
+  Cache-Control: public, max-age=86400

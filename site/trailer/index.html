@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Letterheads: Official Trailer</title>
+<meta name="description" content="300,000 years of being human in 86 seconds. A living world of letter characters walking the real route of humanity, on real Earth ground.">
+<meta property="og:title" content="Letterheads: Official Trailer"><meta property="og:description" content="300,000 years of being human, in 86 seconds.">
+<meta property="og:image" content="https://letterheads.live/trailer/og-trailer.png"><meta property="og:url" content="https://letterheads.live/trailer/"><meta property="og:type" content="video.other"><meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Spectral:wght@500;700&display=swap">
+<style>
+/* One look on purpose: a dark screening room, whatever the viewer's theme. */
+:root{
+  color-scheme:dark;
+  --night:#060707;      /* screen surround */
+  --soot:#121412;       /* bar ground */
+  --bone:#F3EFE6;       /* text */
+  --ash:#A39C90;        /* quiet text */
+  --ember:#E8962F;      /* the Letterheads' ember */
+  --ember-ink:#1A1208;  /* text on ember */
+  --line:rgba(243,239,230,.18);
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--night);color:var(--bone);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+.screen{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding-inline:16px;padding-block:12px;container-type:size}
+.frame{position:relative;width:min(100cqw,calc(100cqh * 16 / 9));max-width:100%;aspect-ratio:16/9}
+video{display:block;width:100%;height:100%;object-fit:contain;background:var(--night)}
+.gate{position:absolute;inset:auto 0 0;display:flex;flex-direction:column;align-items:center;gap:10px;padding-block:48px 7%;
+  background:linear-gradient(to top,rgba(6,7,7,.82),rgba(6,7,7,0))}
+.gate p{margin:0;color:var(--bone);font-size:15px;letter-spacing:.02em;text-shadow:0 1px 6px rgba(0,0,0,.7);font-variant-numeric:tabular-nums}
+.btn{min-height:48px;padding:0 24px;border-radius:24px;border:1px solid var(--line);background:transparent;color:var(--bone);
+  font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.btn:hover{border-color:var(--bone)}
+.btn.main{min-height:56px;padding:0 32px;border-radius:28px;background:var(--ember);border-color:var(--ember);color:var(--ember-ink);font-size:18px}
+.btn.main:hover{filter:brightness(1.08)}
+.btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;padding-inline:16px;
+  padding-block:14px calc(14px + env(safe-area-inset-bottom,0px));background:var(--soot);border-top:1px solid var(--line)}
+.id{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;min-width:0}
+.word{font-family:Spectral,Georgia,"Times New Roman",serif;font-weight:700;font-size:20px;letter-spacing:.2em}
+.tag{color:var(--ash);font-size:14px}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+#note{color:var(--ash);font-size:13px}
+@media (max-width:520px){.gate{padding-block:20px 8px;gap:6px}.btn.main{min-height:44px;font-size:15px;padding:0 20px}.gate p{display:none}}
+</style>
+</head>
+<body>
+
+<main class="screen"><div class="frame">
+  <video id="film" playsinline preload="metadata" poster="poster.jpg" aria-label="Letterheads demo film">
+    <source src="/trailer.mp4" type="video/mp4">
+  </video>
+  <div class="gate" id="gate">
+    <button class="btn main" id="play" type="button">&#9654; Play the film</button>
+    <p id="gateNote">300,000 years of being human, in 86 seconds. Best with sound.</p>
+  </div>
+</div></main>
+<footer class="bar">
+  <div class="id"><span class="word">LETTERHEADS</span><span class="tag">The game you can play without playing &middot; <a href="/" style="color:inherit">Play it at letterheads.live</a></span></div>
+  <div class="acts"><span id="note" aria-live="polite"></span><button class="btn" id="dl" type="button" hidden>Download the film (MP4, 14 MB)</button></div>
+</footer>
+
+<script>
+"use strict";
+const film=document.getElementById("film"),gate=document.getElementById("gate"),playBtn=document.getElementById("play"),
+  gateNote=document.getElementById("gateNote"),dlBtn=document.getElementById("dl"),note=document.getElementById("note");
+const FILE="/trailer.mp4";
+let wantPlay=false,triedBlob=false;
+
+function start(){wantPlay=true;gate.hidden=true;film.controls=true;
+  const p=film.play();if(p&&p.catch)p.catch(()=>{gate.hidden=false;playBtn.textContent="\u25B6 Play the film";});}
+playBtn.addEventListener("click",start);
+film.addEventListener("ended",()=>{film.controls=false;playBtn.textContent="\u25B6 Watch again";gateNote.textContent="Leave it running. Come back tomorrow. See what they became.";gate.hidden=false;});
+addEventListener("keydown",e=>{if(!gate.hidden&&(e.key===" "||e.key==="Enter")&&document.activeElement!==playBtn&&document.activeElement!==dlBtn){e.preventDefault();start();}});
+
+// If the host cannot stream the file in place, load it whole and play from memory.
+film.addEventListener("error",fallback,true);
+film.querySelector("source").addEventListener("error",fallback);
+async function fallback(){if(triedBlob){gate.hidden=false;gateNote.textContent="This browser cannot play the film. Try Chrome, Safari, Edge or Firefox.";return;}triedBlob=true;gateNote.textContent="Loading the film\u2026";
+  try{const r=await fetch(FILE);if(!r.ok)throw new Error(r.status);const b=await r.blob();
+    film.removeAttribute("src");film.innerHTML="";film.src=URL.createObjectURL(b);film.load();
+    gateNote.textContent="300,000 years of being human, in 86 seconds. Best with sound.";if(wantPlay)start();}
+  catch(e){gate.hidden=false;gateNote.textContent="The film could not load here. Reload the page to try again.";}}
+
+// Download, through the viewer's save prompt.
+let saver=null;
+(async()=>{try{saver=window.claude&&window.claude.use?await window.claude.use("downloads"):null;}catch(e){saver=null;}if(saver)dlBtn.hidden=false;else if(!window.claude){const l=document.createElement("a");l.className="btn";l.href=FILE;l.download="letterheads-demo.mp4";l.textContent=dlBtn.textContent;l.style.display="inline-flex";l.style.alignItems="center";l.style.textDecoration="none";dlBtn.replaceWith(l);}})();
+dlBtn.addEventListener("click",async()=>{if(!saver)return;dlBtn.disabled=true;note.textContent="Preparing the file\u2026";
+  try{const r=await fetch(FILE);if(!r.ok)throw new Error(r.status);const b=await r.blob();note.textContent="";
+    await saver.save({filename:"letterheads-demo.mp4",data:b});note.textContent="Saved to your downloads.";}
+  catch(e){const c=e&&e.code;note.textContent=c==="declined"?"":c==="rate_limited"?"A save prompt is already open.":"The download is not available in this view.";if(c==="unavailable"||c==="not_granted")dlBtn.hidden=true;}
+  finally{dlBtn.disabled=false;}});
+</script>
+</body>
+</html>
