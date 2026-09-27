@@ -16,7 +16,7 @@ Live at **https://letterheads.live** · Play at **https://letterheads.live/play/
 
 ## Deploying
 
-The site deploys with Cloudflare Pages from this repository: build command empty, output directory `site`. Every push to `main` goes live.
+The site deploys with GitHub Pages: `.github/workflows/pages.yml` publishes the `site` folder on every push to `main`. `site/CNAME` holds the domain, letterheads.live, whose DNS (at Hostinger) points to GitHub Pages.
 
 ## Data and credits
 
