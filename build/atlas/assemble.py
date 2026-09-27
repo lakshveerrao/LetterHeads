@@ -141,6 +141,7 @@ rep('if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildTerr
 rep('ctx.imageSmoothingEnabled=true;ctx.drawImage(terrain,0,0,WORLD_W,WORLD_H);drawCrossings(tAnim);','ctx.imageSmoothingEnabled=true;if(MAP.place!=null&&TERRA_READY){drawGround();drawCloudShadows();}else ctx.drawImage(terrain,0,0,WORLD_W,WORLD_H);drawCrossings(tAnim);')
 
 exec(open(O+'trailer_patch.py').read())
+exec(open(O+'product_patch.py').read())
 open(O+'letterheads.html','w').write(s)
 open(O+'../../site/index.html','w').write(s)  # the live site serves the game at its root
 print(len(s))

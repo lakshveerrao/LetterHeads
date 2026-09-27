@@ -51,7 +51,7 @@ video{display:block;width:100%;height:100%;object-fit:contain;background:var(--n
 <body>
 
 <main class="screen"><div class="frame">
-  <video id="film" playsinline preload="metadata" poster="poster.jpg" aria-label="Letterheads demo film">
+  <video id="film" playsinline preload="metadata" poster="poster.jpg" aria-label="Letterheads trailer">
     <source src="/trailer.mp4" type="video/mp4">
   </video>
   <div class="gate" id="gate">
@@ -88,10 +88,10 @@ async function fallback(){if(triedBlob){gate.hidden=false;gateNote.textContent="
 
 // Download, through the viewer's save prompt.
 let saver=null;
-(async()=>{try{saver=window.claude&&window.claude.use?await window.claude.use("downloads"):null;}catch(e){saver=null;}if(saver)dlBtn.hidden=false;else if(!window.claude){const l=document.createElement("a");l.className="btn";l.href=FILE;l.download="letterheads-demo.mp4";l.textContent=dlBtn.textContent;l.style.display="inline-flex";l.style.alignItems="center";l.style.textDecoration="none";dlBtn.replaceWith(l);}})();
+(async()=>{try{saver=window.claude&&window.claude.use?await window.claude.use("downloads"):null;}catch(e){saver=null;}if(saver)dlBtn.hidden=false;else if(!window.claude){const l=document.createElement("a");l.className="btn";l.href=FILE;l.download="letterheads-trailer.mp4";l.textContent=dlBtn.textContent;l.style.display="inline-flex";l.style.alignItems="center";l.style.textDecoration="none";dlBtn.replaceWith(l);}})();
 dlBtn.addEventListener("click",async()=>{if(!saver)return;dlBtn.disabled=true;note.textContent="Preparing the file\u2026";
   try{const r=await fetch(FILE);if(!r.ok)throw new Error(r.status);const b=await r.blob();note.textContent="";
-    await saver.save({filename:"letterheads-demo.mp4",data:b});note.textContent="Saved to your downloads.";}
+    await saver.save({filename:"letterheads-trailer.mp4",data:b});note.textContent="Saved to your downloads.";}
   catch(e){const c=e&&e.code;note.textContent=c==="declined"?"":c==="rate_limited"?"A save prompt is already open.":"The download is not available in this view.";if(c==="unavailable"||c==="not_granted")dlBtn.hidden=true;}
   finally{dlBtn.disabled=false;}});
 </script>
