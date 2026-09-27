@@ -2,14 +2,14 @@
 
 **The game you can play without playing.** A living world of letters on the real Earth. The Letterheads wake knowing nothing. They find food, make friends, form words, discover fire and walk 300,000 years of human history on their own, from Omo Kibish in Ethiopia to the Palatine Hill in Rome.
 
-Live at **https://letterheads.live** · Trailer at **https://letterheads.live/trailer/**
+Live at **https://letterheads.live** · Play at **https://letterheads.live/play/** · Trailer at **https://letterheads.live/trailer/**
 
 ## What is in this repository
 
 | Folder | What it holds |
 | --- | --- |
-| `site/` | The live website, served as static files. `index.html` is the whole game in one self-contained HTML file. `trailer.mp4` is the 86-second demo film, `trailer/` is the trailer page. |
-| `build/atlas/` | Builds the game: `python3 build/atlas/assemble.py` combines `original.html` (the core game), `realworld.js` (real ground, rivers, place names), `atlas.js` (the Atlas of the real Earth) and `trailer_patch.py`, and writes `site/index.html`. The `t*.js` and `test*.js` files are Playwright checks. |
+| `site/` | The live website, served as static files. `index.html` is the home page, `play/index.html` is the whole game in one self-contained HTML file, `trailer.mp4` is the 86-second trailer and `trailer/` is its page. `img/` holds the home page's screenshots. |
+| `build/atlas/` | Builds the game: `python3 build/atlas/assemble.py` combines `original.html` (the core game), `realworld.js` (real ground, rivers, place names), `atlas.js` (the Atlas of the real Earth) and `trailer_patch.py`, and writes `site/play/index.html`. The `t*.js` and `test*.js` files are Playwright checks. |
 | `build/terrain/` | Real elevation for the eleven valley sites (Tilezen terrain tiles), `places.json` with each site's window, place names and vegetation sources. |
 | `build/imagery/` | The valley ground: Copernicus Sentinel-2 imagery (`fetch_s2.py`), ESA WorldCover (`fetch_wc.py`), each era's plant cover (`compose.py`), stacked into `ground.jpg` (`stack.py`). Needs `pip install rasterio pyproj mgrs scipy`. |
 | `build/film/` | Makes the demo film from the real game: `build_film.py`, `director.js` (every shot as a function of time), `rec.js` (records frames with Playwright), `music.py` (the score), then ffmpeg. |

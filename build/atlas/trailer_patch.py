@@ -34,7 +34,7 @@ rep('document.getElementById("menuBtn").onclick=()=>{', """// The trailer film s
 const TRAILER_PAGE=/letterheads\\.live$/.test(location.hostname)?"/trailer/":"https://claude.ai/artifact/LLWwJuLLAzXpRxxwFR3rBv";
 let trailerBack=null,trailerMusic=false;
 function openTrailer(){const d=document.getElementById("trailerDlg"),v=document.getElementById("trailerVid");if(!d.hidden)return;trailerBack=document.activeElement;
-  trailerMusic=Music.on;if(trailerMusic)Music.setOn(false);d.hidden=false;if(!v.getAttribute("src"))v.src="trailer.mp4";
+  trailerMusic=Music.on;if(trailerMusic)Music.setOn(false);d.hidden=false;if(!v.getAttribute("src"))v.src=location.pathname.startsWith("/play")?"/trailer.mp4":"trailer.mp4";
   const p=v.play();if(p&&p.catch)p.catch(()=>{});document.getElementById("trailerClose").focus();}
 function closeTrailer(){const d=document.getElementById("trailerDlg"),v=document.getElementById("trailerVid");if(d.hidden)return;v.pause();d.hidden=true;
   if(trailerMusic&&S.settings.sound)Music.setOn(true);if(trailerBack&&trailerBack.focus)trailerBack.focus();}
@@ -46,11 +46,12 @@ document.getElementById("menuBtn").onclick=()=>{""")
 
 # Link previews and the favicon for the live site (letterheads.live serves the game at its root).
 rep('<title>Letterheads: a living world of letters</title>', """<title>Letterheads: a living world of letters</title>
+<link rel="canonical" href="https://letterheads.live/play/">
 <meta name="description" content="A living world of letters on the real Earth. The Letterheads find food, make friends, form words, discover fire and walk 300,000 years of human history, all on their own.">
 <meta property="og:title" content="Letterheads: a living world of letters">
 <meta property="og:description" content="The game you can play without playing. 300,000 years of being human, on the real Earth.">
 <meta property="og:image" content="https://letterheads.live/og-image.png">
-<meta property="og:url" content="https://letterheads.live/">
+<meta property="og:url" content="https://letterheads.live/play/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">""")
