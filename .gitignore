@@ -6,3 +6,5 @@ build/atlas/shots/
 build/film/frames/
 build/film/score.wav
 *.log
+world/node_modules/
+world/.wrangler/
