@@ -198,3 +198,6 @@ const WORLD=(()=>{
 WORLD_JS=WORLD_JS.replace('W.visitorTick=()=>{VISITOR_TICK();};','W.visitorTick=()=>{if(!S||!started)return;'+vt+'};')
 rep('function save(){if(WORLD.remote)', WORLD_JS+CMDS+'function save(){if(WORLD.remote)')
 rep('window.__lango={','window.__lango={get world(){return WORLD},wx:WX,')
+
+# Words still coming together are drawn as dashed lines and announced in the caption, so the top line counts them too.
+rep('${nw} word${nw===1?"":"s"}${WORLD.on?', '${nw} word${nw===1?"":"s"}${S.words.length>nw?" ("+(S.words.length-nw)+" forming)":""}${WORLD.on?')
