@@ -162,6 +162,8 @@ body.broadcast .place-link{display:none!important}
 .vrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(31,36,33,.12)}.vrow:first-child{border-top:none}
 .vrow .vt{flex:1;min-width:0}.vrow .vt b{display:block}.vrow .vt span{font-size:13px;color:#5A635D}
 .vlink{word-break:break-all;font-size:13px;background:rgba(31,36,33,.06);padding:8px 10px;border-radius:8px;user-select:all}
+@media (max-width:480px){.top .brand{position:relative}.top .brand .place-link{position:absolute;left:0;top:100%;margin-top:0}}
+@media (max-width:360px){.top{gap:6px;padding-left:14px;padding-right:12px}}
 body.broadcast .top,body.broadcast .zoom,body.broadcast .tour-btn,body.broadcast #hint,body.broadcast .caption .row,
 body.broadcast #elsewhere,body.broadcast #returnBtn,body.broadcast #storyToast,body.broadcast #trailerDlg,body.broadcast #intro,
 body.broadcast .sheet,body.broadcast #atlasUI .row,body.broadcast #atlasUI .atime,body.broadcast .aclose{display:none!important}
@@ -438,8 +440,9 @@ function newWorld(){
   S.seenBiomes[biomeAt(HOME.x,HOME.y)]=1;
   startChapter("wanderers");chron("The first 26 letters woke in a green valley beside a river, knowing nothing at all. Beyond the hills, a whole world waited.","world");
 }
+function freeName(){const used=new Set(S.agents.map(a=>a.name));for(let k=0;k<NAMES.length;k++){const n=NAMES[(S.nameIdx++)%NAMES.length];if(!used.has(n))return n;}return NAMES[(S.nameIdx++)%NAMES.length];}
 function makeAgent(ch,x,y,born,young){
-  return{id:nextId++,ch,name:NAMES[(S.nameIdx++)%NAMES.length],x,y,vx:0,vy:0,born,young:!!young,youngUntil:young?born+30*DAY:0,
+  return{id:nextId++,ch,name:freeName(),x,y,vx:0,vy:0,born,young:!!young,youngUntil:young?born+30*DAY:0,
     hunger:.15+rnd()*.25,thirst:.15+rnd()*.25,energy:.7+rnd()*.25,social:.25+rnd()*.25,joy:.5,sad:0,wet:0,food:0,carry:null,
     tr:{courage:rnd(),generosity:rnd(),curiosity:rnd(),loyalty:.25+rnd()*.7,caution:rnd(),iq:.8+rnd()*.5,owl:rnd()<.25,ambition:rnd(),greed:rnd()*.9,envy:rnd()*.9},dream:null,dreamsDone:0,
     bonds:{},mem:[],know:{},map:{t:{},r:{}},ateAt:[],word:null,act:null,phase:rnd()*6,decideAt:1+rnd()*4,formAt:3+rnd()*8,leaveAt:90+rnd()*60,cool:0,why:[],crossing:null,crossExit:null,deeds:0};
@@ -524,7 +527,7 @@ document.getElementById("filmVoice").onclick=()=>{const vb=document.getElementBy
 document.getElementById("tourBtn").onclick=()=>{if(!S.settings.sound)setSound(true);startTour();};
 try{speechSynthesis.onvoiceschanged=()=>{};speechSynthesis.getVoices();}catch(e){}
 addEventListener("keydown",e=>{if(e.key==="Escape"&&tour)endTour(false);});
-function makeMoment(o){if(tour||ATL.on)return;if(document.getElementById("intro").style.display!=="none")return;hint("moment");const last=S.moments[0];if(last&&Date.now()-last.t<20000&&o.score<95)return;const m={id:Date.now(),t:Date.now(),day:dayN(),text:o.text,sub:o.sub||"",kind:o.kind,chapter:era()};
+function makeMoment(o){if(tour||ATL.on)return;if(document.getElementById("intro").style.display!=="none")return;hint("moment");const last=S.moments[0];if(last&&Date.now()-last.t<20000&&o.score<95)return;const m={id:Date.now(),t:Date.now(),day:dayN(),text:o.text,sub:o.sub||"",kind:o.kind,chapter:era(),who:(o.main!=null&&agentById(o.main)?.name)||((o.ids||[]).map(agentById).find(Boolean)?.name)||null};
   S.moments.unshift(m);if(S.moments.length>120)S.moments.length=120;lastMoment=m;momentFx={until:tAnim+4.5,capAt:tAnim+1.8,id:m.id};shareUntil=tAnim+30;}
 function captureMoment(id){try{const m=S.moments.find(x=>x.id===id);if(!m)return;const c=document.createElement("canvas");c.width=1080;c.height=1350;const g=c.getContext("2d");
   const sw=cv.width,sh=cv.height,r=Math.max(1080/sw,1000/sh);const dw=sw*r,dh=sh*r;g.fillStyle="#1F2421";g.fillRect(0,0,1080,1350);g.drawImage(cv,(1080-dw)/2,(1000-dh)/2-40,dw,dh);
@@ -534,7 +537,10 @@ function captureMoment(id){try{const m=S.moments.find(x=>x.id===id);if(!m)return
 let dlNS;async function getDL(){if(dlNS!==undefined)return dlNS;try{dlNS=window.claude&&window.claude.use?await window.claude.use("downloads"):null;}catch(e){dlNS=null;}return dlNS;}
 function dataURLtoBlob(u){const[h,b]=u.split(",");const bin=atob(b);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"});}
 function note(text){const tb=document.getElementById("storyToast");tb.textContent=text;tb.style.display="block";tb.onclick=()=>{tb.style.display="none";};setTimeout(()=>{tb.style.display="none";},6000);}
-async function shareMoment(m){if(!m)return;const text=`${m.text} (Letterheads, day ${m.day}) https://letterheads.live`;const img=momentImgs[m.id];const blob=img?dataURLtoBlob(img):null;
+function momentLink(m){const f=m.who?"follow="+encodeURIComponent(m.who):"";
+  if(WORLD.on&&WORLD.mode!=="world"&&WORLD.vid)return "https://letterheads.live/play/?v="+WORLD.vid+(f?"&"+f:"");
+  if(WORLD.on)return "https://letterheads.live/play/"+(f?"?"+f:"");return "https://letterheads.live/play/";}
+async function shareMoment(m){if(!m)return;const text=`${m.text} (Letterheads, day ${m.day}) ${momentLink(m)}`;const img=momentImgs[m.id];const blob=img?dataURLtoBlob(img):null;
   try{if(blob&&navigator.canShare){const file=new File([blob],"letterheads-moment.jpg",{type:"image/jpeg"});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return;}}
     if(!blob&&navigator.share){await navigator.share({text});return;}}catch(e){if(e&&e.name==="AbortError")return;}
   let copied=false;try{if(navigator.clipboard){await navigator.clipboard.writeText(text);copied=true;}}catch(e){}
@@ -1955,7 +1961,7 @@ function updateCaption(){let text,sub;
   if(!text&&sel&&cam.mode==="free"){const a=agentById(sel);if(a){text=describe(a);sub=subFor(a);}}
   if(!text&&director.cur){if(director.cur.live){const a=agentById(director.cur.main);if(a){text=describe(a);sub=subFor(a);}}else{text=director.cur.text;sub=director.cur.sub||"";}}
   if(text&&capT.textContent!==text)capT.textContent=text;capS.textContent=sub||"";const a=focusAgent();followBtn.textContent=cam.mode==="follow"?"Stop following":a?`Follow ${a.name}`:"Follow";
-  const jb=document.getElementById("joinBtn");const n=S.visitor.adopted.length;jb.textContent=n?`Your letters (${n})`:"Join";}
+  const jb=document.getElementById("joinBtn");const n=S.visitor.adopted.length;jb.textContent=n?(innerWidth<=480?`♥ ${n}`:`Your letters (${n})`):"Join";jb.setAttribute("aria-label",n?`Your letters (${n})`:"Join");}
 followBtn.onclick=()=>{if(cam.mode==="follow"){cam.mode="director";cam.follow=null;}else{const a=focusAgent();if(a){cam.mode="follow";cam.follow=a.id;}}updateCaption();};
 whyBtn.onclick=()=>{const a=focusAgent();if(a)openWhy(a);};
 document.getElementById("shareBtn").onclick=()=>shareMoment(lastMoment);
@@ -2057,7 +2063,7 @@ function helpFlow(a){if(!a)return;const offers=[];if(a.hurt>S.simT)offers.push([
   out.innerHTML=`<div class="actions">${offers.slice(0,3).map(([k,l,free])=>`<button data-k="${k}" ${free?"data-free=\"1\"":""}>${esc(l)} ${free?"(free)":"(1 ✦)"}</button>`).join("")}</div><p class="muted" data-res>${esc(a.name)} decides. Care in hard times is always free; a refused offer costs nothing.</p>`;
   out.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{WX("help",a,{k:b.dataset.k,free:b.dataset.free?1:0},out.querySelector("[data-res]"))});}
 function suggestLetters(){const out=[];S.words.filter(w=>w.state==="wounded").forEach(w=>out.push(w.text[w.missing]));for(const c of"EOARLSTN")if(out.length<3&&!out.includes(c))out.push(c);return out.slice(0,3);}
-document.getElementById("joinBtn").onclick=()=>{if(S.visitor.adopted.length)openDashboard();else openSheet(`<h2 id="sheetTitle">Join the valley</h2><p class="muted">Watching needs nothing at all. ${WORLD.on?"Everyone at letterheads.live shares this one world. Joining is free and needs no account; your companions are remembered on this device.":"Joining is free, needs no account, and lives only on this device."}</p>
+document.getElementById("joinBtn").onclick=()=>{if(S.visitor.adopted.length)openDashboard();else openSheet(`<h2 id="sheetTitle">${WORLD.on&&WORLD.mode==="world"?"Join The World":"Join the valley"}</h2><p class="muted">Watching needs nothing at all. ${WORLD.on?"Everyone at letterheads.live shares this one world. Joining is free and needs no account; your companions are remembered on this device.":"Joining is free, needs no account, and lives only on this device."}</p>
   <h3>Adopt a letter</h3><p>Tap any letter and choose Adopt. You can have up to 3 companions. What they do in their world adds to, or takes away from, what you can do here.</p>
   <h3>Bring a letter</h3><p class="muted">People can bring single letters, never finished words. You have ${S.visitor.gifts} to give.</p><div class="actions" id="giftRow">${S.visitor.gifts>0?suggestLetters().map(c=>`<button data-c="${c}">Bring ${art(c)} ${c}</button>`).join(""):""}</div>`,"join"),
   sheetBody.querySelectorAll("#giftRow [data-c]").forEach(b=>b.onclick=()=>WX("gift",null,{c:b.dataset.c},null,()=>closeSheet()));};
@@ -2300,7 +2306,7 @@ CMD.ability=(a,args,out)=>{const id=args.id;if(!ABIL.some(x=>x.id===id)||id==="i
     if(!kn.length||!b){refund(ab.cost,"Nothing to teach yet, sparks returned");if(out)out.textContent=`${a.name} has nothing to teach yet, or no one nearby to learn. Your sparks are returned.`;return;}done(a);startAct(a,{type:"talk",target:b.id});if(a.act)a.act.teach=kn.find(c=>!knows(b,c));remember(a,`A visitor asked me to teach ${b.name}.`);if(out)out.textContent=`${a.name} goes to teach ${b.name}.`;}
   if(id==="back"){const w=wordById(a.word);if(!w){refund(ab.cost,"No word to back, sparks returned");if(out)out.textContent=`${a.name} has no word to back yet. Your sparks are returned.`;return;}w.backedUntil=S.simT+200;w.projAt=0;remember(a,"A visitor backed our work.");if(out)out.textContent=`${w.text} puts extra effort into its work.`;}
   a.nudgedUntil=S.simT+240;(S.visitor.trustIn=S.visitor.trustIn||{})[a.id]=clamp((S.visitor.trustIn[a.id]||0)+.08,-1,1);rateVisitor(5,`${a.name} appreciated your support`);save();setTimeout(()=>renderDashboard(true),1800);};
-CMD.adopt=(a,args,out)=>{if(S.visitor.adopted.includes(a.id)||S.visitor.adopted.length>=3)return;let n=String(args.n||"");if(n!==a.name&&(!NAMES.includes(n)||a.renamed))n=a.name;const old=a.name;if(n!==old)a.renamed=1;a.name=n;S.visitor.adopted.push(a.id);remember(a,"A visitor from beyond chose to be my companion.",true);chron(`A visitor adopted ${old}${old!==a.name?", now called "+a.name:""}.`,"people");save();};
+CMD.adopt=(a,args,out)=>{if(S.visitor.adopted.includes(a.id)||S.visitor.adopted.length>=3)return;let n=String(args.n||"");if(n!==a.name&&(!NAMES.includes(n)||a.renamed||S.agents.some(o=>o!==a&&o.name===n)))n=a.name;const old=a.name;if(n!==old)a.renamed=1;a.name=n;S.visitor.adopted.push(a.id);remember(a,"A visitor from beyond chose to be my companion.",true);chron(`A visitor adopted ${old}${old!==a.name?", now called "+a.name:""}.`,"people");save();};
 CMD.letgo=(a,args,out)=>{if(!S.visitor.adopted.includes(a.id))return;S.visitor.adopted=S.visitor.adopted.filter(id=>id!==a.id);emote(a,"grief",10);a.sad=Math.min(1,a.sad+.5);remember(a,"The visitor who adopted me let me go.",true);(S.visitor.trustIn=S.visitor.trustIn||{})[a.id]=-.5;
     rateVisitor(1,`You let ${a.name} go`,2);S.visitor.standing-=3;S.visitor.deeds.unshift({t:Date.now(),delta:-3,text:`You let ${a.name} go`});chron(`A visitor let ${a.name} go.`,"people");save();};
 CMD.gift=(a,args,out)=>{const c=String(args.c||"");if(!/^[A-Z]$/.test(c)||(LATE[c]&&!S.lateBorn?.[c])||S.agents.length>=72){out.textContent="The refuge is full right now.";return;}
@@ -2309,8 +2315,8 @@ CMD.gift=(a,args,out)=>{const c=String(args.c||"");if(!/^[A-Z]$/.test(c)||(LATE[
   chron(`A new ${c} named ${x.name} arrived at the Hearth refuge, brought by a visitor.`,"people");addStory({kind:"arrival",ids:[x.id],text:`${x.name}, a new ${c}, has arrived at the refuge.`,sub:"Where will they choose to belong?",score:72,dur:20,main:x.id});Music.birth();save();};
 
 CMD.arrive=(a,args,out)=>{const c=String(args.ch||"");if(!/^[A-Z]$/.test(c)||(LATE[c]&&!S.lateBorn?.[c])||S.agents.length>=72)return;
-  const from=NAMES.includes(args.from)?args.from:null,where=from?`${from}'s valley`:"another valley";const x=makeAgent(c,REFUGE.x+(rnd()-.5)*60,REFUGE.y+30,Date.now(),false);if(NAMES.includes(args.n))x.name=args.n;S.agents.push(x);
-  remember(x,`I travelled here from ${where}.`,true);chron(`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");
+  const from=NAMES.includes(args.from)?args.from:null,where=from?`${from}'s valley`:"another valley";const x=makeAgent(c,REFUGE.x+(rnd()-.5)*60,REFUGE.y+30,Date.now(),false);const was=NAMES.includes(args.n)?args.n:null;if(was&&!S.agents.some(o=>o.name===was))x.name=was;const renamed=was&&x.name!==was;S.agents.push(x);
+  remember(x,renamed?`I travelled here from ${where}, where I was called ${was}. Someone here already had that name, so I became ${x.name}.`:`I travelled here from ${where}.`,true);chron(renamed?`${was}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where} and took the name ${x.name}, because a ${was} already lived here.`:`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");
   addStory({kind:"arrival",ids:[x.id],text:`${x.name}, ${art(c)} ${c}, has arrived from ${where}.`,sub:"A traveller from another valley. Where will they belong?",score:76,dur:20,main:x.id});Music.birth();};
 WORLD.pill=()=>{const b=document.getElementById("placeLink");if(!b)return;if(!WORLD.on||document.body.classList.contains("broadcast")){b.hidden=true;return;}b.hidden=false;document.body.classList.add("has-place");
   const name=WORLD.mode==="world"?"🌍 The World":WORLD.mode==="mine"?"🏡 Your valley":`🏡 ${WORLD.vname||"A"}'s valley`;const t=`${name} · ${WORLD.here()}`;if(b.textContent!==t)b.textContent=t;};
