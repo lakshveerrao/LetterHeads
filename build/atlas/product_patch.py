@@ -8,3 +8,5 @@ rep('const text=`${m.text} (Letterheads, day ${m.day})`;','const text=`${m.text}
 # Outside claude.ai there is no save prompt, so offer the picture as a normal download.
 rep('if(!blob&&copied){note("The words are copied. Paste them anywhere.");return;}',
     'if(!dl&&blob&&!window.claude){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="letterheads-moment.jpg";document.body.appendChild(a);a.click();a.remove();note(copied?"Picture saved, and the words are copied. Paste them with it.":"Picture saved.");return;}\n  if(!blob&&copied){note("The words are copied. Paste them anywhere.");return;}')
+# Both legs and both arms in the same dark ink: the lighter back limbs were hard to see on the real ground.
+rep('const INKC="#1F2421",BACKC="#6A726C";','const INKC="#1F2421",BACKC="#1F2421";')

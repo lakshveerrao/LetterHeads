@@ -1242,7 +1242,7 @@ function ember(a){if(a.emo&&a.emo.k==="anger"&&a.emo.until>S.simT)return"#C4452C
 // ================= the Letterhead rig: one stickman skeleton, the letter in the torso =================
 const RS=0.82,R_THI=21,R_SHI=21,R_UA=16,R_FA=15,R_TH=30,R_STRIDE=30,R_CYC=R_STRIDE/.6;
 let LOD_SIMPLE=0.72,perfAvg=8;
-const INKC="#1F2421",BACKC="#6A726C";
+const INKC="#1F2421",BACKC="#1F2421";
 function rFoot(ph){ph=((ph%1)+1)%1;
   if(ph<.6){const x=R_STRIDE/2-R_STRIDE*(ph/.6);if(ph>.48){const pr=(ph-.48)/.12*28*Math.PI/180;return[x+6-6*Math.cos(pr),-6*Math.sin(pr),pr];}return[x,0,0];}
   const u=(ph-.6)/.4,e=u*u*(3-2*u);return[-R_STRIDE/2+R_STRIDE*e,-6*Math.sin(Math.PI*u),(28*(1-u)*(1-u)-8*Math.sin(Math.PI*u))*Math.PI/180];}
