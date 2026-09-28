@@ -7,6 +7,14 @@ workers_dev = true
 name = "WORLD"
 class_name = "World"
 
+[[durable_objects.bindings]]
+name = "DIR"
+class_name = "Directory"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["World"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Directory"]

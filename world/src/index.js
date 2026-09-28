@@ -1,64 +1,96 @@
-// Letterheads world server: one shared world for everyone at letterheads.live.
+// Letterheads world server: The World that everyone shares, and a valley of their own for anyone who wants one.
 //
-// The simulation itself runs in a visitor's browser, the "keeper". The server picks the keeper, keeps the latest
-// copy of the world, and passes messages between the keeper and everyone else ("watchers"):
-//   keeper   -> server : binary snapshot of the whole world (every few seconds), stored and passed to watchers
-//   keeper   -> server : {t:"live"} small frames (twice a second) and {t:"ev"} events, passed to watchers
-//   watcher  -> server : {t:"cmd"} a request to help a letter, passed to the keeper
-//   keeper   -> server : {t:"res", to} the answer to a request, passed back to the watcher who asked
-// If the keeper leaves, hides its tab or goes quiet, another visitor takes over from the world as it last was.
+// Every world (The World, or one person's valley) is one Durable Object of class World. The simulation itself runs in
+// a browser, the "keeper"; the server picks the keeper, keeps the latest copy of the world, and passes messages between
+// the keeper and everyone else ("watchers"):
+//   keeper  -> server : binary snapshot of the whole world (every few seconds), stored and passed to watchers
+//   keeper  -> server : {t:"live"} small frames (twice a second), passed to watchers
+//   watcher -> server : {t:"cmd"} a request to help a letter, passed to the keeper
+//   keeper  -> server : {t:"res", to} the answer to a request, passed back to the watcher who asked
+// In The World any visible visitor can be the keeper, and another takes over if it leaves. In a valley only its owner
+// (who holds the valley's secret token) is ever the keeper; while the owner is away, visitors see it as it last was.
+// Owners report their valley to the Directory, which lists open valleys for the Atlas.
 
 const MAX_SNAPSHOT = 3 * 1024 * 1024;
 const PERSIST_EVERY = 60 * 1000;
 const KEEPER_QUIET = 8 * 1000;
 const CMD_PER_MIN = 30;
+const ARRIVE_GAP = 2 * 60 * 1000;
+const VALLEY_ID = /^[a-z0-9]{6,16}$/;
+const NAME_OK = /^[A-Z][a-z]{1,11}$/; // valley names are built from letter names, which come from the game's own list
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const cors = { "access-control-allow-origin": "*", "cache-control": "no-store" };
-    const world = env.WORLD.get(env.WORLD.idFromName("main"));
+    const json = (body) => new Response(typeof body === "string" ? body : JSON.stringify(body), { headers: { "content-type": "application/json", ...cors } });
+    const w = url.searchParams.get("w") || "world";
+    if (w !== "world" && !VALLEY_ID.test(w)) return new Response("Unknown valley", { status: 404, headers: cors });
+    const stub = env.WORLD.get(env.WORLD.idFromName(w === "world" ? "main" : "v:" + w));
     if (url.pathname === "/ws") {
       if (req.headers.get("upgrade") !== "websocket") return new Response("Expected a WebSocket", { status: 426 });
-      return world.fetch(req);
+      const h = new Headers(req.headers);
+      h.set("x-lh-world", w);
+      return stub.fetch(new Request(req, { headers: h }));
     }
     if (url.pathname === "/status") {
-      const r = await world.fetch(new Request(url.origin + "/status"));
-      return new Response(await r.text(), { headers: { "content-type": "application/json", ...cors } });
+      const r = await stub.fetch(new Request(url.origin + "/status?w=" + w, { headers: { "x-lh-world": w } }));
+      return json(await r.text());
+    }
+    if (url.pathname === "/valleys") {
+      const r = await env.DIR.get(env.DIR.idFromName("all")).fetch(new Request(url.origin + "/list"));
+      return json(await r.text());
     }
     return new Response("Letterheads world server. Play at https://letterheads.live", { headers: cors });
   },
 };
 
+async function sha(text) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export class World {
   constructor(ctx, env) {
     this.ctx = ctx;
     this.env = env;
-    this.clients = new Map(); // id -> {ws, joined, visible, mobile, trusted, cmds:[]}
+    this.wid = null; // "world" or a valley id
+    this.clients = new Map(); // id -> {ws, joined, visible, mobile, trusted, owner, courier, ip, cmds:[]}
     this.keeper = null;
     this.snap = null; // Uint8Array
     this.snapAt = 0;
     this.persistedAt = 0;
     this.keeperHeard = 0;
     this.nextId = 1;
+    this.meta = null;
+    this.reportedAt = 0;
+    this.arrivals = new Map(); // ip -> time, in The World
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const s = await ctx.storage.get("snap");
       if (s) { this.snap = new Uint8Array(s); this.snapAt = (await ctx.storage.get("snapAt")) || 0; }
+      this.ownerHash = (await ctx.storage.get("ownerHash")) || null;
+      this.inbox = (await ctx.storage.get("inbox")) || [];
+      this.meta = (await ctx.storage.get("meta")) || null;
     });
     this.timer = setInterval(() => this.tick(), 2000);
   }
 
+  get isValley() { return this.wid && this.wid !== "world"; }
+
   async fetch(req) {
     await this.ready;
+    if (!this.wid) this.wid = req.headers.get("x-lh-world") || "world";
     const url = new URL(req.url);
     if (url.pathname === "/status") {
-      return new Response(JSON.stringify({ online: this.clients.size, keeper: !!this.keeper, updated: this.snapAt }));
+      const n = [...this.clients.values()].filter((c) => c.hello && !c.courier).length;
+      return new Response(JSON.stringify({ online: n, keeper: !!this.keeper, updated: this.snapAt, name: this.meta?.name || null }));
     }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     server.accept();
     const id = String(this.nextId++);
-    const c = { ws: server, joined: Date.now(), visible: true, mobile: false, trusted: false, cmds: [], hello: false };
+    const c = { ws: server, joined: Date.now(), visible: true, mobile: false, trusted: false, owner: false, courier: false, cmds: [], hello: false,
+      ip: req.headers.get("cf-connecting-ip") || "local" };
     this.clients.set(id, c);
     server.addEventListener("message", async (e) => {
       let d = e.data;
@@ -77,16 +109,20 @@ export class World {
     catch (e) { this.drop(id); }
   }
 
+  people() { return [...this.clients.values()].filter((c) => c.hello && !c.courier).length; }
+
   toWatchers(msg) {
-    for (const [id, c] of this.clients) if (id !== this.keeper && c.hello) this.send(id, msg);
+    for (const [id, c] of this.clients) if (id !== this.keeper && c.hello && !c.courier) this.send(id, msg);
   }
 
   count() {
-    const n = this.clients.size;
-    for (const [id, c] of this.clients) if (c.hello) this.send(id, { t: "count", n });
+    const n = this.people();
+    for (const [id, c] of this.clients) if (c.hello && !c.courier) this.send(id, { t: "count", n, live: !!this.keeper });
   }
 
-  onMessage(id, data) {
+  canKeep(c) { return this.isValley ? c.owner : !c.courier; }
+
+  async onMessage(id, data) {
     const c = this.clients.get(id);
     if (!c) return;
     if (typeof data !== "string") {
@@ -105,41 +141,69 @@ export class World {
     if (!m || typeof m.t !== "string") return;
     switch (m.t) {
       case "hello": {
-        c.hello = true;
+        if (c.hello) return;
+        c.courier = !!m.courier;
         c.visible = m.visible !== false;
         c.mobile = !!m.mobile;
         c.trusted = !!(this.env.KEEPER_KEY && m.key && m.key === this.env.KEEPER_KEY);
+        if (this.isValley && typeof m.own === "string" && m.own.length >= 16 && m.own.length <= 64) {
+          const h = await sha(m.own);
+          if (!this.ownerHash) { this.ownerHash = h; await this.ctx.storage.put("ownerHash", h); }
+          c.owner = h === this.ownerHash;
+        }
+        c.hello = true;
+        if (c.courier) { this.send(id, { t: "welcome", id, keeper: false, courier: true }); return; }
         let keeper = false;
-        if (!this.keeper || (c.trusted && !this.clients.get(this.keeper)?.trusted)) {
+        const cur = this.keeper && this.clients.get(this.keeper);
+        if (this.canKeep(c) && (!cur || (c.trusted && !cur.trusted) || (c.owner && this.isValley))) {
           if (this.keeper) this.send(this.keeper, { t: "role", keeper: false });
           this.keeper = id; this.keeperHeard = Date.now(); keeper = true;
         }
-        this.send(id, { t: "welcome", id, keeper, hasSnap: !!this.snap, n: this.clients.size });
-        if (this.snap) this.send(id, this.snap);
+        this.send(id, { t: "welcome", id, keeper, owner: c.owner, hasSnap: !!this.snap, n: this.people(), live: !!this.keeper, valley: this.isValley, name: this.meta?.name || null });
+        if (this.snap && !(keeper && this.isValley)) this.send(id, this.snap);
+        if (keeper) this.flushInbox();
         this.count();
         break;
       }
       case "vis":
         c.visible = !!m.on;
+        if (this.isValley) break;
         if (id === this.keeper && !c.visible) this.elect(id);
         else if (!this.keeper && c.visible) this.elect(null);
         break;
       case "live":
-      case "ev":
         if (id !== this.keeper) return;
         this.keeperHeard = Date.now();
         this.toWatchers(data);
+        break;
+      case "meta":
+        // the owner describes their valley for the Atlas
+        if (id !== this.keeper || !this.isValley || !c.owner) return;
+        this.meta = this.cleanMeta(m);
+        if (Date.now() - this.reportedAt > 25000) this.report(true);
         break;
       case "res":
         if (id !== this.keeper || typeof m.to !== "string") return;
         this.send(m.to, data);
         break;
       case "cmd": {
-        if (id === this.keeper || !this.keeper) { this.send(id, { t: "res", rid: m.rid, error: "nokeeper" }); return; }
         const now = Date.now();
         c.cmds = c.cmds.filter((t) => now - t < 60000);
         if (c.cmds.length >= CMD_PER_MIN) { this.send(id, { t: "res", rid: m.rid, error: "busy" }); return; }
         c.cmds.push(now);
+        if (c.courier) {
+          // a letter travelling from someone's valley into The World
+          if (this.isValley || m.name !== "arrive") return;
+          if (now - (this.arrivals.get(c.ip) || 0) < ARRIVE_GAP) { this.send(id, { t: "res", rid: m.rid, error: "wait" }); return; }
+          this.arrivals.set(c.ip, now);
+          const a = m.args || {};
+          const item = { name: "arrive", args: { ch: String(a.ch || "").slice(0, 1), n: String(a.n || "").slice(0, 12), from: String(a.from || "").slice(0, 12) } };
+          if (this.keeper) { this.send(this.keeper, { t: "cmd", rid: 0, from: "inbox", ...item }); }
+          else { this.inbox = [...this.inbox, item].slice(-20); await this.ctx.storage.put("inbox", this.inbox); }
+          this.send(id, { t: "res", rid: m.rid, ok: true });
+          return;
+        }
+        if (id === this.keeper || !this.keeper) { this.send(id, { t: "res", rid: m.rid, error: "nokeeper" }); return; }
         m.from = id;
         this.send(this.keeper, m);
         break;
@@ -147,15 +211,45 @@ export class World {
     }
   }
 
-  // Pick a new keeper: a visible visitor, trusted first, then computers before phones, then whoever came first.
+  cleanMeta(m) {
+    const num = (v, lo, hi) => (typeof v === "number" && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
+    return {
+      name: typeof m.name === "string" && NAME_OK.test(m.name) ? m.name : null,
+      listed: m.listed !== false,
+      x: num(m.x, -1e6, 1e6), yy: num(m.yy, -1e6, 1e6), y: num(m.y, 0, 300000),
+      place: typeof m.place === "string" ? m.place.replace(/[<>]/g, "").slice(0, 60) : "",
+      letters: num(m.letters, 0, 999) | 0, words: num(m.words, 0, 999) | 0,
+    };
+  }
+
+  async flushInbox() {
+    if (!this.inbox.length || !this.keeper) return;
+    for (const item of this.inbox) this.send(this.keeper, { t: "cmd", rid: 0, from: "inbox", ...item });
+    this.inbox = [];
+    await this.ctx.storage.put("inbox", []);
+  }
+
+  async report(online) {
+    if (!this.isValley || !this.meta) return;
+    this.reportedAt = Date.now();
+    await this.ctx.storage.put("meta", this.meta);
+    try {
+      await this.env.DIR.get(this.env.DIR.idFromName("all")).fetch(new Request("https://dir/report", {
+        method: "POST", body: JSON.stringify({ id: this.wid, ...this.meta, online, watching: Math.max(0, this.people() - 1) }),
+      }));
+    } catch (e) {}
+  }
+
+  // Pick a new keeper: in The World a visible visitor (trusted first, then computers before phones, then whoever came
+  // first); in a valley only its owner.
   elect(avoid) {
     const old = this.keeper;
-    const cands = [...this.clients.entries()].filter(([id, c]) => c.hello && c.visible && id !== avoid);
+    const cands = [...this.clients.entries()].filter(([id, c]) => c.hello && this.canKeep(c) && (this.isValley || c.visible) && id !== avoid);
     cands.sort((a, b) => (b[1].trusted - a[1].trusted) || (a[1].mobile - b[1].mobile) || (a[1].joined - b[1].joined));
     if (!cands.length) {
-      // nobody better: keep the current keeper if it is still here, even hidden
-      if (old && this.clients.has(old)) return;
+      if (old && this.clients.has(old)) return; // nobody better: keep the current keeper, even hidden
       this.keeper = null;
+      this.count();
       return;
     }
     const next = cands[0][0];
@@ -164,6 +258,8 @@ export class World {
     this.keeper = next;
     this.keeperHeard = Date.now();
     this.send(next, { t: "role", keeper: true });
+    this.flushInbox();
+    this.count();
     this.persist();
   }
 
@@ -171,14 +267,19 @@ export class World {
     if (!this.clients.has(id)) return;
     try { this.clients.get(id).ws.close(); } catch (e) {}
     this.clients.delete(id);
-    if (id === this.keeper) { this.keeper = null; this.elect(null); }
+    if (id === this.keeper) {
+      this.keeper = null;
+      this.elect(null);
+      if (this.isValley && !this.keeper) this.report(false);
+    }
     this.count();
     if (!this.clients.size) this.persist();
   }
 
   tick() {
-    if (this.keeper && Date.now() - this.keeperHeard > KEEPER_QUIET && this.clients.size > 1) this.elect(this.keeper);
+    if (this.keeper && Date.now() - this.keeperHeard > KEEPER_QUIET && this.clients.size > 1 && !this.isValley) this.elect(this.keeper);
     if (!this.keeper && this.clients.size) this.elect(null);
+    if (this.isValley && this.keeper && this.meta && Date.now() - this.reportedAt > 30000) this.report(true);
   }
 
   async persist() {
@@ -186,9 +287,52 @@ export class World {
     this.persistedAt = Date.now();
     const buf = this.snap.slice().buffer;
     await this.ctx.storage.put({ snap: buf, snapAt: this.snapAt });
+    if (this.isValley) return;
     // one backup per hour of the day, so a bad keeper can be undone
     const h = new Date().getUTCHours();
     const last = await this.ctx.storage.get("bakHour");
     if (last !== h) await this.ctx.storage.put({ ["bak" + h]: buf, bakHour: h });
+  }
+}
+
+// The list of valleys for the Atlas: every valley whose owner has had it open in the last two days and wants it shown.
+export class Directory {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.list = new Map();
+    this.dirty = false;
+    this.ready = ctx.blockConcurrencyWhile(async () => {
+      const l = await ctx.storage.get("list");
+      if (l) for (const v of l) this.list.set(v.id, v);
+    });
+  }
+
+  async fetch(req) {
+    await this.ready;
+    const url = new URL(req.url);
+    const now = Date.now();
+    if (url.pathname === "/report" && req.method === "POST") {
+      let v;
+      try { v = await req.json(); } catch (e) { return new Response("bad", { status: 400 }); }
+      if (!v || !VALLEY_ID.test(v.id)) return new Response("bad", { status: 400 });
+      if (!v.listed || !v.name) this.list.delete(v.id);
+      else this.list.set(v.id, { id: v.id, name: v.name, x: v.x, yy: v.yy, y: v.y, place: v.place, letters: v.letters, words: v.words, online: !!v.online, watching: v.watching | 0, seen: now });
+      if (!this.dirty) { this.dirty = true; setTimeout(() => this.save(), 20000); }
+      return new Response("ok");
+    }
+    if (url.pathname === "/list") {
+      const out = [...this.list.values()].filter((v) => now - v.seen < 48 * 3600 * 1000)
+        .map((v) => ({ ...v, online: v.online && now - v.seen < 90000 }))
+        .sort((a, b) => (b.online - a.online) || (b.seen - a.seen)).slice(0, 150);
+      return new Response(JSON.stringify({ valleys: out }));
+    }
+    return new Response("not found", { status: 404 });
+  }
+
+  async save() {
+    this.dirty = false;
+    const now = Date.now();
+    for (const [id, v] of this.list) if (now - v.seen > 48 * 3600 * 1000) this.list.delete(id);
+    await this.ctx.storage.put("list", [...this.list.values()]);
   }
 }
