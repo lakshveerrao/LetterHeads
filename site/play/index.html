@@ -164,6 +164,10 @@ body.broadcast .place-link{display:none!important}
 .vlink{word-break:break-all;font-size:13px;background:rgba(31,36,33,.06);padding:8px 10px;border-radius:8px;user-select:all}
 @media (max-width:480px){.top .brand{position:relative}.top .brand .place-link{position:absolute;left:0;top:100%;margin-top:0}}
 @media (max-width:360px){.top{gap:6px;padding-left:14px;padding-right:12px}}
+#livingNote{position:fixed;left:50%;transform:translateX(-50%);top:calc(126px + env(safe-area-inset-top,0px));z-index:30;background:#1F2421;color:#F8F9F6;border-radius:14px;padding:10px 16px 12px;font-size:14px;font-weight:700;max-width:calc(100% - 24px);width:420px;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
+#livingNote b{display:block;height:4px;margin-top:8px;border-radius:2px;background:rgba(248,249,246,.2);overflow:hidden}#livingNote i{display:block;height:100%;width:0;background:#E8962F;transition:width .3s}
+#livingNote[hidden]{display:none!important}body.broadcast #livingNote{display:none!important}
+.away{padding-left:18px;margin:10px 0}.away li{margin:6px 0}.away .muted{font-size:12px;margin-right:4px}
 body.broadcast .top,body.broadcast .zoom,body.broadcast .tour-btn,body.broadcast #hint,body.broadcast .caption .row,
 body.broadcast #elsewhere,body.broadcast #returnBtn,body.broadcast #storyToast,body.broadcast #trailerDlg,body.broadcast #intro,
 body.broadcast .sheet,body.broadcast #atlasUI .row,body.broadcast #atlasUI .atime,body.broadcast .aclose{display:none!important}
@@ -201,7 +205,7 @@ body.broadcast #bcast{display:block}
 </div>
 <div id="bcast" aria-hidden="true"><div class="b-live"><i>LIVE</i>Letterheads</div><div class="b-era" id="bEra"></div><div class="b-url">Play along at <b>letterheads.live</b></div></div>
 <button class="float" id="returnBtn">Return to the story</button>
-<button class="float" id="storyToast"></button>
+<div id="livingNote" hidden role="status"><span></span><b><i></i></b></div><button class="float" id="storyToast"></button>
 <button class="float" id="elsewhere"><span id="elseText">Elsewhere</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></button>
 <div class="zoom">
   <button class="round" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg></button>
@@ -462,7 +466,7 @@ const TIPS={word:"Letters that choose each other become a word. The glow around 
   moment:"Big moments slow down like this. Tap Share to send one to a friend.",tap:"Tap any letter to meet it. Adopt one to make it yours.",danger:"Alone at night is dangerous. Shields, fires and friends keep letters safe.",
   chapter:"When the whole world changes, a new chapter begins. The menu keeps the Story so far.",dash:"Your letters shows how your companions are doing, and what you can do for them.",dream:"Every letter has its own dream. Tap a letter to see what it hopes for.",atlas:"This valley is a real place. Tap Atlas at the top, or zoom all the way out, to see it on the real Earth."};
 let hintQ=[],hintUntil=0;
-function hint(k){if(S.settings.tips===false)return;S.settings.hintsSeen=S.settings.hintsSeen||{};if(S.settings.hintsSeen[k]||hintQ.includes(k))return;hintQ.push(k);}
+function hint(k){if(CATCHING||S.settings.tips===false)return;S.settings.hintsSeen=S.settings.hintsSeen||{};if(S.settings.hintsSeen[k]||hintQ.includes(k))return;hintQ.push(k);}
 function hintTick(){const el=document.getElementById("hint");if(el.style.display!=="none")el.style.bottom=(document.querySelector(".caption").offsetHeight+34)+"px";if(el.style.display!=="none"&&tAnim>hintUntil){el.style.display="none";}
   if(el.style.display==="none"&&hintQ.length&&document.getElementById("intro").style.display==="none"){const k=hintQ.shift();S.settings.hintsSeen[k]=1;document.getElementById("hintText").textContent=TIPS[k];el.style.display="flex";hintUntil=tAnim+12;
     el.style.bottom=(document.querySelector(".caption").offsetHeight+34)+"px";}}
@@ -527,7 +531,7 @@ document.getElementById("filmVoice").onclick=()=>{const vb=document.getElementBy
 document.getElementById("tourBtn").onclick=()=>{if(!S.settings.sound)setSound(true);startTour();};
 try{speechSynthesis.onvoiceschanged=()=>{};speechSynthesis.getVoices();}catch(e){}
 addEventListener("keydown",e=>{if(e.key==="Escape"&&tour)endTour(false);});
-function makeMoment(o){if(tour||ATL.on)return;if(document.getElementById("intro").style.display!=="none")return;hint("moment");const last=S.moments[0];if(last&&Date.now()-last.t<20000&&o.score<95)return;const m={id:Date.now(),t:Date.now(),day:dayN(),text:o.text,sub:o.sub||"",kind:o.kind,chapter:era(),who:(o.main!=null&&agentById(o.main)?.name)||((o.ids||[]).map(agentById).find(Boolean)?.name)||null};
+function makeMoment(o){if(CATCHING){const last=S.moments[0];if(last&&Date.now()-last.t<20000&&o.score<95)return;S.moments.unshift({id:Date.now(),t:Date.now(),day:dayN(),text:o.text,sub:o.sub||"",kind:o.kind,chapter:era(),who:(o.main!=null&&agentById(o.main)?.name)||null});if(S.moments.length>120)S.moments.length=120;return;}if(tour||ATL.on)return;if(document.getElementById("intro").style.display!=="none")return;hint("moment");const last=S.moments[0];if(last&&Date.now()-last.t<20000&&o.score<95)return;const m={id:Date.now(),t:Date.now(),day:dayN(),text:o.text,sub:o.sub||"",kind:o.kind,chapter:era(),who:(o.main!=null&&agentById(o.main)?.name)||((o.ids||[]).map(agentById).find(Boolean)?.name)||null};
   S.moments.unshift(m);if(S.moments.length>120)S.moments.length=120;lastMoment=m;momentFx={until:tAnim+4.5,capAt:tAnim+1.8,id:m.id};shareUntil=tAnim+30;}
 function captureMoment(id){try{const m=S.moments.find(x=>x.id===id);if(!m)return;const c=document.createElement("canvas");c.width=1080;c.height=1350;const g=c.getContext("2d");
   const sw=cv.width,sh=cv.height,r=Math.max(1080/sw,1000/sh);const dw=sw*r,dh=sh*r;g.fillStyle="#1F2421";g.fillRect(0,0,1080,1350);g.drawImage(cv,(1080-dw)/2,(1000-dh)/2-40,dw,dh);
@@ -984,7 +988,7 @@ function step(dt){
       if(S.simT-(S.lastGreed||-1e9)>300){S.lastGreed=S.simT;chron(`${a.name} held onto ${a.food} fruit while ${h.name} went hungry.`,"tension");addStory({kind:"greed",ids:[a.id,h.id],text:`${a.name} is holding onto ${a.food} fruit while ${h.name} goes hungry.`,sub:"Neighbours are watching, and they will remember.",score:68,dur:12,main:a.id});addDeed(a,-1,"hoarded food while another went hungry");}}}}
   if(S.simT>=(S.renownAt||0)){S.renownAt=S.simT+60;renownTick();
     for(const a of S.agents){if(!a.prof)continue;for(const c in a.prof){if(S.simT-((a.used||{})[c]||0)>1800&&a.prof[c]>.15){const l0=level(a.prof[c]);a.prof[c]=Math.max(.12,a.prof[c]-.04);if(level(a.prof[c])!==l0)remember(a,`My skill at ${CONCEPTS[c]} has grown rusty.`);}}}}
-  if(!WORLD.on)if(S.simT>=(S.neglectAt||0)){S.neglectAt=S.simT+30;for(const id of S.visitor.adopted){const a=agentById(id);if(!a)continue;const watching=cam.follow===a.id||sel===a.id;const trouble=a.hunger>.88||a.energy<.08||a.hurt>S.simT;
+  if(!WORLD.on&&!CATCHING)if(S.simT>=(S.neglectAt||0)){S.neglectAt=S.simT+30;for(const id of S.visitor.adopted){const a=agentById(id);if(!a)continue;const watching=cam.follow===a.id||sel===a.id;const trouble=a.hunger>.88||a.energy<.08||a.hurt>S.simT;
     const fond=(S.visitor.trustIn||{})[a.id]||0;if(trouble&&fond>.15&&Date.now()-(a.lastAskV||0)>300000){a.lastAskV=Date.now();companionAsk(a);}
     if(watching&&fond>.3&&Date.now()-(a.lastWave||0)>300000){a.lastWave=Date.now();emote(a,"love",5);}
     if(watching&&trouble){a.neglect=(a.neglect||0)+30;if(a.neglect>=120&&Date.now()-(a.lastNeglect||0)>600000){a.lastNeglect=Date.now();a.neglect=0;rateVisitor(2,`${a.name} felt ignored in a hard time`);(S.visitor.trustIn=S.visitor.trustIn||{})[a.id]=clamp((S.visitor.trustIn[a.id]||0)-.2,-1,1);remember(a,"I was in trouble, and my visitor watched but did not help.");}}else a.neglect=0;}}
@@ -1088,8 +1092,8 @@ function beasts(dt){
     const dx=w.tx-w.x,dy=w.ty-w.y,d=Math.hypot(dx,dy);const sp=w.state==="stalk"?40:w.state==="flee"?70:24;if(d>6){w.vx=lerp(w.vx,dx/d*sp,.1);w.vy=lerp(w.vy,dy/d*sp,.1);}else{w.vx*=.8;w.vy*=.8;}
     const nx=w.x+w.vx*dt,ny=w.y+w.vy*dt;if(!inWater(nx,ny)){w.x=nx;w.y=ny;}else{w.vx*=-.5;w.vy*=-.5;}w.phase=(w.phase||0)+dt*Math.hypot(w.vx,w.vy)*.2;}
 }
-function companionAsk(a){const need=a.hurt>S.simT?"hurt":a.hunger>.8?"hungry":"exhausted";const tb=document.getElementById("storyToast");tb.textContent=`${a.name} is ${need} and hopes you can help. Open`;tb.style.display="block";tb.onclick=()=>{tb.style.display="none";openDashboard();};setTimeout(()=>{tb.style.display="none";},14000);}
-function companionAlert(a,text){const tb=document.getElementById("storyToast");tb.textContent=`${text}. Watch`;tb.style.display="block";tb.onclick=()=>{cam.mode="follow";cam.follow=a.id;tb.style.display="none";updateCaption();};setTimeout(()=>{tb.style.display="none";},14000);}
+function companionAsk(a){if(CATCHING)return;const need=a.hurt>S.simT?"hurt":a.hunger>.8?"hungry":"exhausted";const tb=document.getElementById("storyToast");tb.textContent=`${a.name} is ${need} and hopes you can help. Open`;tb.style.display="block";tb.onclick=()=>{tb.style.display="none";openDashboard();};setTimeout(()=>{tb.style.display="none";},14000);}
+function companionAlert(a,text){if(CATCHING)return;const tb=document.getElementById("storyToast");tb.textContent=`${text}. Watch`;tb.style.display="block";tb.onclick=()=>{cam.mode="follow";cam.follow=a.id;tb.style.display="none";updateCaption();};setTimeout(()=>{tb.style.display="none";},14000);}
 function renown(w){const ms=wordMembers(w).filter(Boolean);return ms.length*2+ms.reduce((t,m)=>t+Object.values(S.firsts).filter(f=>f.by===m.id).length*5,0)+S.structs.filter(s=>s.word===w.id&&s.built).length*4+(S.wordLog[w.id]?.events.filter(e=>e.k==="birth").length||0)*2;}
 function renownTick(){const ws=S.words.filter(w=>w.state!=="forming");if(ws.length<2)return;ws.sort((p,q)=>renown(q)-renown(p));const top=ws[0];
   if(top.id!==S.topWord&&renown(top)>renown(ws[1])){const prev=wordById(S.topWord);S.topWord=top.id;chron(`${top.text} is now the most renowned family in the valley${prev?`, overtaking ${prev.text}`:""}.`,"tension");
@@ -1448,9 +1452,9 @@ let last=performance.now(),acc=0,tAnim=0;
 function worldTransform(){ctx.setTransform(DPR*cam.z,0,0,DPR*cam.z,DPR*(W/2-cam.x*cam.z),DPR*(H/2-cam.y*cam.z));}
 function frame(now){
   const dtReal=Math.min(.1,(now-last)/1000);last=now;tAnim+=dtReal;
-  const fxOn=momentFx&&tAnim<momentFx.until&&!S.settings.reduce;if(WORLD.mirror){WORLD.glide(dtReal);acc=0;}else{acc+=dtReal*(WORLD.on?1:SPEED*(fxOn?.35:1));let n=0;while(acc>=.1&&n<80){step(.1);acc-=.1;n++;}}
+  const fxOn=momentFx&&tAnim<momentFx.until&&!S.settings.reduce;if(WORLD.mirror){WORLD.glide(dtReal);acc=0;}else{if(CATCHING)acc=0;else if(S.livedAt&&Date.now()-S.livedAt>LIVING.min){acc=0;catchUp();}else{acc+=dtReal*(WORLD.on?1:SPEED*(fxOn?.35:1));let n=0;while(acc>=.1&&n<80){step(.1);acc-=.1;n++;}S.livedAt=Date.now();}}
   if(S.simT>=director.nextPick){director.nextPick=S.simT+2;pickStory();}
-  if(tAnim>=(director.nextCap||0)){director.nextCap=tAnim+1;if(!tour&&!ATL.on&&tAnim>(director.nextPlace||0)){director.nextPlace=tAnim+4;if(!WORLD.mirror)relocate();}if(WORLD.on)WORLD.visitorTick();updateCaption();hintTick();if(tAnim>45)hint("tap");if(tAnim>12)hint("atlas");{const nw=S.words.filter(w=>w.state!=="forming").length;WORLD.pill();document.getElementById("eraLine").textContent=`${era()} · Day ${dayN()} · ${historyLabel()}${TERRA_READY?" "+placeNow().short:""} · ${S.agents.length} letters · ${nw} word${nw===1?"":"s"}${S.words.length>nw?" ("+(S.words.length-nw)+" forming)":""}${WORLD.on?" · "+WORLD.here():""} · ${valleyLabel()}${S.wx.rain?", raining":""}`;}}
+  if(tAnim>=(director.nextCap||0)){director.nextCap=tAnim+1;if(!tour&&!ATL.on&&tAnim>(director.nextPlace||0)){director.nextPlace=tAnim+4;if(!WORLD.mirror)relocate();}awayTick();if(WORLD.on)WORLD.visitorTick();updateCaption();hintTick();if(tAnim>45)hint("tap");if(tAnim>12)hint("atlas");{const nw=S.words.filter(w=>w.state!=="forming").length;WORLD.pill();document.getElementById("eraLine").textContent=`${era()} · Day ${dayN()} · ${historyLabel()}${TERRA_READY?" "+placeNow().short:""} · ${S.agents.length} letters · ${nw} word${nw===1?"":"s"}${S.words.length>nw?" ("+(S.words.length-nw)+" forming)":""}${WORLD.on?" · "+WORLD.here():""} · ${valleyLabel()}${S.wx.rain?", raining":""}`;}}
   if(cam.mode==="follow"){const a=agentById(cam.follow);if(a){cam.tx=a.x;cam.ty=a.y-40;cam.tz=Math.max(cam.tz,1.35);}}
   else if(cam.mode==="director"&&S.settings.camera==="director"&&director.cur){
     const as=director.cur.ids.map(agentById).filter(Boolean);const wd=director.cur.word?wordById(director.cur.word):null;const pts=as.map(a=>({x:a.x,y:a.y-40}));if(wd)pts.push({x:wd.x-wd.width/2,y:wd.y-60},{x:wd.x+wd.width/2,y:wd.y-60});
@@ -2063,7 +2067,7 @@ function helpFlow(a){if(!a)return;const offers=[];if(a.hurt>S.simT)offers.push([
   out.innerHTML=`<div class="actions">${offers.slice(0,3).map(([k,l,free])=>`<button data-k="${k}" ${free?"data-free=\"1\"":""}>${esc(l)} ${free?"(free)":"(1 ✦)"}</button>`).join("")}</div><p class="muted" data-res>${esc(a.name)} decides. Care in hard times is always free; a refused offer costs nothing.</p>`;
   out.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{WX("help",a,{k:b.dataset.k,free:b.dataset.free?1:0},out.querySelector("[data-res]"))});}
 function suggestLetters(){const out=[];S.words.filter(w=>w.state==="wounded").forEach(w=>out.push(w.text[w.missing]));for(const c of"EOARLSTN")if(out.length<3&&!out.includes(c))out.push(c);return out.slice(0,3);}
-document.getElementById("joinBtn").onclick=()=>{if(S.visitor.adopted.length)openDashboard();else openSheet(`<h2 id="sheetTitle">${WORLD.on&&WORLD.mode==="world"?"Join The World":"Join the valley"}</h2><p class="muted">Watching needs nothing at all. ${WORLD.on?"Everyone at letterheads.live shares this one world. Joining is free and needs no account; your companions are remembered on this device.":"Joining is free, needs no account, and lives only on this device."}</p>
+document.getElementById("joinBtn").onclick=()=>{if(S.visitor.adopted.length)openDashboard();else openSheet(`<h2 id="sheetTitle">${WORLD.on&&WORLD.mode==="world"?"Join The World":"Join the valley"}</h2><p class="muted">Watching needs nothing at all. ${WORLD.on?"Everyone at letterheads.live shares this one world. Joining is free and needs no account; your companions are kept in this browser, and Valleys can move them to another device.":"Joining is free, needs no account, and lives only on this device."}</p>
   <h3>Adopt a letter</h3><p>Tap any letter and choose Adopt. You can have up to 3 companions. What they do in their world adds to, or takes away from, what you can do here.</p>
   <h3>Bring a letter</h3><p class="muted">People can bring single letters, never finished words. You have ${S.visitor.gifts} to give.</p><div class="actions" id="giftRow">${S.visitor.gifts>0?suggestLetters().map(c=>`<button data-c="${c}">Bring ${art(c)} ${c}</button>`).join(""):""}</div>`,"join"),
   sheetBody.querySelectorAll("#giftRow [data-c]").forEach(b=>b.onclick=()=>WX("gift",null,{c:b.dataset.c},null,()=>closeSheet()));};
@@ -2101,7 +2105,7 @@ document.getElementById("menuBtn").onclick=()=>{
   document.getElementById("mChron").onclick=()=>openSheet(`<h2 id="sheetTitle">The Chronicle</h2><p class="muted">Everything here happened. Nothing is scripted.</p>${S.chronicle.slice(0,100).map(c=>`<div class="chron-item"><time>${esc(timeAgo(c.t))}</time>${esc(c.text)}</div>`).join("")}`,"chron");
   document.getElementById("mAbout").onclick=()=>openSheet(`<h2 id="sheetTitle">What is this?</h2><p>A living world of letters, happening right now. The letters live, discover and form words on their own, the way early humans found their way from wandering to building. You can simply watch, or adopt a letter and take part. Every letter is a person with needs, feelings, memories and its own map of what it has seen.</p>
     <h3>How the world works</h3><ul><li>The valley is a real place: its hills, rivers and coasts come from real elevation data for a site where people lived at this point in history, and its warmth from the real latitude and the Ice Age climate. As history moves on, the families move along humanity's route, from the Omo valley to the Tiber. It is the same world for everyone.</li><li>Rivers are real barriers. Letters must find fords or fallen logs, or build bridges. Zoom all the way out to see the whole valley, and further still to open the Atlas.</li><li>The Atlas shows the real Earth from NASA imagery. Seas and ice sheets change with the history clock, and glowing clusters mark where Letterheads live, following humanity's real routes. The valley we follow has a real place on it, though its landscape is imagined.</li><li>Seasons follow the real calendar: fruit is plentiful at harvest and scarce in winter, and snow covers the cold north and the peaks.</li><li>Nothing is known at first. Stone tools, fire, shelter, fishing, planting, cooking and bridges must all be discovered, then taught.</li><li>Words can only form from ideas a letter already understands. No one can form FIRE before knowing fire.</li><li>Rain raises the river and floods the fords. Lightning can set trees alight. Night without a fire is cold.</li></ul>
-    <h3>About Letterheads</h3><p class="muted">Time is real: one day in the valley is one calendar day, and letters are young for their first month. Everyday actions take seconds, as they would, and a letter eats every few minutes by its own small body's clock. A new chapter begins whenever the whole world truly changes, and the Story so far keeps every one. ${WORLD.on?"Everyone at letterheads.live watches and helps this same world, live. Your companions and sparks are kept only in this browser: no accounts, no ads, no tracking.":"The world lives while this page is open and is saved only in this browser: no accounts, no ads, no tracking."} Music is generated live and never repeats exactly. ${DICT.length} possible words.</p>`,"about");
+    <h3>About Letterheads</h3><p class="muted">Time is real: one day in the valley is one calendar day, and letters are young for their first month. Everyday actions take seconds, as they would, and a letter eats every few minutes by its own small body's clock. A new chapter begins whenever the whole world truly changes, and the Story so far keeps every one. ${WORLD.on?"Everyone at letterheads.live watches and helps this same world, live. Your companions and sparks are kept only in this browser: no accounts, no ads, no tracking.":"The world keeps living while this page is closed, and is saved only in this browser: no accounts, no ads, no tracking."} Music is generated live and never repeats exactly. ${DICT.length} possible words.</p>`,"about");
   const mr=document.getElementById("mReset");if(mr)mr.onclick=()=>{if(confirm("Start a brand-new world? This one will be lost.")){try{localStorage.removeItem(SAVE_KEY);}catch(e){}newWorld();stories=[];director={cur:null,since:0,nextPick:0};save();closeSheet();}};
 };
 let lastSheetTouch=0;sheet.addEventListener("pointerdown",()=>{lastSheetTouch=Date.now();});sheet.addEventListener("focusin",()=>{lastSheetTouch=Date.now();});
@@ -2191,10 +2195,10 @@ const WORLD=(()=>{
   function light(a){const o={};for(const k in a)if(!HEAVY.includes(k))o[k]=a[k];return o;}
   function send(m){if(ws&&ws.readyState===1)ws.send(typeof m==="string"||m instanceof Uint8Array?m:JSON.stringify(m));}
   function snapshotText(){const {visitor,settings,...world}=S;return JSON.stringify({S:world,nextId,stories},round);}
-  async function sendSnap(){if(!W.keeper||!S)return;try{send(await pack(snapshotText()));}catch(e){}}
-  function sendLive(){if(!W.keeper||!S)return;const m={t:"live",T:S.simT,nid:nextId,A:S.agents.map(light),W:S.words,B:S.beasts,H:S.herd,X:S.structs,wx:S.wx,st:stories,pl:S.place,ph:S.placeHome,
+  async function sendSnap(){if(!W.keeper||!S||CATCHING)return;try{send(await pack(snapshotText()));}catch(e){}}
+  function sendLive(){if(!W.keeper||!S||CATCHING)return;const m={t:"live",T:S.simT,nid:nextId,A:S.agents.map(light),W:S.words,B:S.beasts,H:S.herd,X:S.structs,wx:S.wx,st:stories,pl:S.place,ph:S.placeHome,
       tf:S.trees.map(t=>[t.fruit,t.burning||0,t.charred||0]),tn:S.trees.length,fi:S.firsts,dc:S.discovered,E:evq};evq=[];send(JSON.stringify(m,round));}
-  W.ev=e=>{if(W.keeper&&!W.remote)evq.push(e);};
+  W.ev=e=>{if(W.keeper&&!W.remote&&!CATCHING)evq.push(e);};W.snapNow=()=>sendSnap();
   function sendMeta(){if(!W.keeper||!W.own||!S)return;const m=W.my()||{};if(!m.name&&m.id){m.name=W.autoName();W.setMy(m);}let v=null;try{v=valleyAt(yearsAgo());}catch(e){}
     send({t:"meta",name:m.name||W.autoName(),listed:m.listed!==false,x:v?v.x:0,yy:v?v.yy:0,y:yearsAgo(),place:v?v.name:"",letters:S.agents.length,words:S.words.filter(w=>w.state!=="forming").length});}
   W.autoName=()=>{const a=S&&(S.agents.find(x=>S.visitor&&S.visitor.adopted.includes(x.id))||S.agents.find(x=>!x.young));return a&&/^[A-Z][a-z]{1,11}$/.test(a.name)?a.name:"Asha";};
@@ -2258,7 +2262,7 @@ const WORLD=(()=>{
     socket.onmessage=async e=>{if(typeof e.data!=="string"){const text=await unpack(e.data);if(!started){W.snapText=text;onWelcome&&onWelcome("snap");return;}if(W.mirror)applySnap(text);return;}
       let m;try{m=JSON.parse(e.data);}catch(err){return;}
       if(m.t==="welcome"){W.down=false;backoff=1000;W.n=m.n||1;W.live=m.live!==false;if(m.name)W.vname=m.name;
-        if(!started){if(m.keeper){W.keeper=true;if(!m.hasSnap||W.mode==="mine")onWelcome&&onWelcome(W.mode==="mine"?"mine":"new");}else if(W.mode==="mine"){W.mirror=true;onWelcome&&onWelcome("mine");}else{W.mirror=true;if(!m.hasSnap)onWelcome&&onWelcome("empty");}}
+        if(!started){if(m.keeper){W.keeper=true;if(!m.hasSnap)onWelcome&&onWelcome(W.mode==="mine"?"mine":"new");}else if(W.mode==="mine"){W.mirror=true;if(!m.hasSnap)onWelcome&&onWelcome("mine");}else{W.mirror=true;if(!m.hasSnap)onWelcome&&onWelcome("empty");}}
         else{if(m.keeper&&!W.keeper)becomeKeeper();else if(!m.keeper&&W.keeper)becomeWatcher();}}
       else if(m.t==="count"){W.n=m.n;if(m.live!=null)W.live=m.live;}
       else if(m.t==="role"){if(m.keeper)becomeKeeper();else becomeWatcher();}
@@ -2266,7 +2270,7 @@ const WORLD=(()=>{
       else if(m.t==="cmd"){if(W.keeper&&started)runCmd(m);else if(W.keeper)early.push(m);}
       else if(m.t==="res"){const r=pending.get(m.rid);if(r){pending.delete(m.rid);r(m);}}};
     socket.onclose=()=>{if(ws!==socket)return;ws=null;if(!started){onWelcome(null);return;}W.down=true;setTimeout(()=>connect(null),backoff);backoff=Math.min(15000,backoff*2);};}
-  W.join=async()=>{if(params.has("solo"))return;let base=params.get("world");
+  W.join=async()=>{await takeMove();if(params.has("solo"))return;let base=params.get("world");
     if(!base){try{const r=await fetch("/world.json",{cache:"no-store"});if(r.ok){const j=await r.json();base=j.url;}}catch(e){}}
     if(!base||!/^wss?:\/\//.test(base))return;W.base=base.split("?")[0];
     const v=(params.get("v")||"").toLowerCase(),my=W.my();
@@ -2316,7 +2320,7 @@ CMD.gift=(a,args,out)=>{const c=String(args.c||"");if(!/^[A-Z]$/.test(c)||(LATE[
 
 CMD.arrive=(a,args,out)=>{const c=String(args.ch||"");if(!/^[A-Z]$/.test(c)||(LATE[c]&&!S.lateBorn?.[c])||S.agents.length>=72)return;
   const from=NAMES.includes(args.from)?args.from:null,where=from?`${from}'s valley`:"another valley";const x=makeAgent(c,REFUGE.x+(rnd()-.5)*60,REFUGE.y+30,Date.now(),false);const was=NAMES.includes(args.n)?args.n:null;if(was&&!S.agents.some(o=>o.name===was))x.name=was;const renamed=was&&x.name!==was;S.agents.push(x);
-  remember(x,renamed?`I travelled here from ${where}, where I was called ${was}. Someone here already had that name, so I became ${x.name}.`:`I travelled here from ${where}.`,true);chron(renamed?`${was}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where} and took the name ${x.name}, because a ${was} already lived here.`:`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");
+  remember(x,renamed?`I travelled here from ${where}, where I was called ${was}. Someone here already had that name, so I became ${x.name}.`:`I travelled here from ${where}.`,true);chron(renamed?`${was}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where} and took the name ${x.name}, because ${/^[AEIOU]/.test(was)?"an":"a"} ${was} already lived here.`:`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");
   addStory({kind:"arrival",ids:[x.id],text:`${x.name}, ${art(c)} ${c}, has arrived from ${where}.`,sub:"A traveller from another valley. Where will they belong?",score:76,dur:20,main:x.id});Music.birth();};
 WORLD.pill=()=>{const b=document.getElementById("placeLink");if(!b)return;if(!WORLD.on||document.body.classList.contains("broadcast")){b.hidden=true;return;}b.hidden=false;document.body.classList.add("has-place");
   const name=WORLD.mode==="world"?"🌍 The World":WORLD.mode==="mine"?"🏡 Your valley":`🏡 ${WORLD.vname||"A"}'s valley`;const t=`${name} · ${WORLD.here()}`;if(b.textContent!==t)b.textContent=t;};
@@ -2335,7 +2339,7 @@ function openValleys(){const my=WORLD.my(),mine=WORLD.mode==="mine";
   <div class="opt"><label for="vListed">Show it on the Atlas for anyone to visit</label><input type="checkbox" id="vListed" ${my&&my.listed===false?"":"checked"}></div>
   <h3>Send a letter to The World</h3><p class="muted">A letter from your valley can travel to The World, where everyone will see it arrive. It leaves your valley for good.</p>
   <div class="actions" id="vSend">${travellers.map(a=>`<button data-send="${a.id}">${esc(a.name)}, ${art(a.ch)} ${a.ch}</button>`).join("")}</div><p class="muted" id="vSendOut" aria-live="polite"></p>`:""}
-  <h3>Valleys open around the world</h3><div id="vList"><p class="muted">Looking…</p></div><p class="muted">They glow on the Atlas too.</p>`,"valleys");
+  ${moveSection()}<h3>Valleys open around the world</h3><div id="vList"><p class="muted">Looking…</p></div><p class="muted">They glow on the Atlas too.</p>`,"valleys");
   const bind=()=>sheetBody.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goValley(b.dataset.go));bind();
   const vm=document.getElementById("vMine");if(vm)vm.onclick=()=>goValley(WORLD.ensureMy().id);
   if(mine){document.getElementById("vShare").onclick=async()=>{const u=WORLD.link(WORLD.vid),t=`Come and see ${cur}'s valley on Letterheads: letters living through 300,000 years of history.`;
@@ -2343,7 +2347,7 @@ function openValleys(){const my=WORLD.my(),mine=WORLD.mode==="mine";
     sheetBody.querySelectorAll("[data-name]").forEach(b=>b.onclick=()=>{const m=WORLD.ensureMy();m.name=b.dataset.name;WORLD.setMy(m);WORLD.sendMeta();openValleys();});
     document.getElementById("vListed").onchange=e=>{const m=WORLD.ensureMy();m.listed=e.target.checked;WORLD.setMy(m);WORLD.sendMeta();};
     sheetBody.querySelectorAll("[data-send]").forEach(b=>b.onclick=()=>sendToWorld(agentById(+b.dataset.send),b));}
-  fetchValleys().then(l=>{const el=document.getElementById("vList");if(!el)return;el.innerHTML=l.length?valleyRows(l):`<p class="muted">No other valleys are open right now. Start yours and share it.</p>`;bind();});}
+  bindMove();fetchValleys().then(l=>{const el=document.getElementById("vList");if(!el)return;el.innerHTML=l.length?valleyRows(l):`<p class="muted">No other valleys are open right now. Start yours and share it.</p>`;bind();});}
 function sendToWorld(a,btn){const out=document.getElementById("vSendOut");if(!a||!WORLD.base)return;if(!confirm(`Send ${a.name} to The World? ${a.name} will leave your valley for good.`))return;
   out.textContent=`${a.name} is setting off…`;let done=false;const fin=t=>{if(done)return;done=true;out.textContent=t;try{ws.close();}catch(e){}};
   const ws=new WebSocket(WORLD.base+"?w=world");setTimeout(()=>fin("The World couldn't be reached. Try again in a moment."),9000);
@@ -2355,8 +2359,89 @@ function sendToWorld(a,btn){const out=document.getElementById("vSendOut");if(!a|
       chron(`${a.name} set off for The World, and everyone there saw it arrive.`,"people");save();if(btn)btn.remove();fin(`${a.name} is on the way. Go to The World to see ${a.name} arrive at the Hearth refuge.`);}};
   ws.onerror=()=>fin("The World couldn't be reached. Try again in a moment.");}
 if(params.get("nov"))setTimeout(()=>{const tb=document.getElementById("storyToast");tb.textContent="That valley hasn't opened yet, so here is The World.";tb.style.display="block";tb.onclick=()=>{tb.style.display="none";};setTimeout(()=>{tb.style.display="none";},9000);},4000);
+
+var CATCHING=false;
+const LIVING={dt:.1,min:30000,last:null,budget:gap=>Math.min(12000,3000+gap/3600e3*1500)};
+function spanText(ms){const m=Math.round(ms/60000);if(m<60)return`${Math.max(1,m)} minute${m===1?"":"s"}`;const h=Math.round(ms/3600000);if(h<48)return`${h} hour${h===1?"":"s"}`;const d=Math.round(ms/86400000);return`${d} day${d===1?"":"s"}`;}
+function livingNote(text,pct){const el=document.getElementById("livingNote");if(!el)return;if(text==null){el.hidden=true;return;}el.hidden=false;el.querySelector("span").textContent=text;el.querySelector("i").style.width=Math.round((pct||0)*100)+"%";}
+async function catchUp(){if(CATCHING||!S)return;const gap=S.livedAt?Date.now()-S.livedAt:0;if(!S.livedAt||gap<LIVING.min){S.livedAt=Date.now();return;}
+  CATCHING=true;const realNow=Date.now,music=Music.on,from=S.livedAt,t0=performance.now(),before={simT:S.simT};let vnow=from,lived=0;
+  const who=WORLD.on&&WORLD.mode==="world"?"The World":WORLD.on&&WORLD.mode==="mine"?"Your valley":"The valley";
+  const run=(ms,cap)=>{const end=performance.now()+ms;let n=0;Date.now=()=>Math.round(vnow);Music.on=false;
+    try{while(performance.now()<end&&n<cap){step(LIVING.dt);n++;}}finally{Date.now=realNow;Music.on=music;}return n;};
+  try{let n=0;const c0=performance.now();vnow=from;n=run(60,40);const per=Math.max(.05,(performance.now()-c0)/Math.max(1,n));
+    const gapS=gap/1000,budget=LIVING.budget(gap),target=Math.min(gapS,budget/per*LIVING.dt),ratio=gapS/target;lived=n*LIVING.dt;vnow=from+lived*ratio*1000;
+    livingNote(`${who} was left alone for ${spanText(gap)}. The letters are living through that time now.`,0);
+    while(lived<target&&performance.now()-t0<budget*1.6){const k=run(120,Math.ceil((target-lived)/LIVING.dt));
+      lived+=k*LIVING.dt;vnow=from+lived*ratio*1000;livingNote(`${who} was left alone for ${spanText(gap)}. The letters are living through that time now.`,lived/target);await new Promise(r=>setTimeout(r,0));}
+    LIVING.last={gap,lived,ratio,ms:Math.round(performance.now()-t0),from};}
+  catch(e){console.error(e);}
+  finally{Date.now=realNow;Music.on=music;S.livedAt=Date.now();CATCHING=false;livingNote(null);if(WORLD.on&&WORLD.keeper)WORLD.snapNow();save();}}
+// "While you were away": what happened in this world since this person last looked at it
+let AWAY_FROM=null,AWAY_DONE=false;
+function awayStart(){AWAY_FROM=(S.visitor&&S.visitor.seenAt)||0;}
+function awayTick(){if(!AWAY_DONE||!S||!S.visitor||document.hidden)return;S.visitor.seenAt=Date.now();}
+function yearsAt(t){const real=Date.now;Date.now=()=>t;try{return yearsAgo();}finally{Date.now=real;}}
+function showAway(){if(AWAY_DONE)return;AWAY_DONE=true;const since=AWAY_FROM;const gap=since?Date.now()-since:0;
+  if(!since||gap<10*60000){if(since){if(S.visitor.adopted.length)showWelcome();else showStoryToast();}return;}
+  if(document.getElementById("intro").style.display!=="none")return;
+  const words=S.words.filter(w=>w.state!=="forming"&&(w.bornReal||0)>since),born=S.agents.filter(a=>(a.born||0)>since),found=S.history.filter(h=>h.t>since&&h.kind==="discovery"),chaps=(S.chapters||[]).filter(c=>c.t>since);
+  const y0=yearsAt(since),y1=yearsAgo(),moved=historyLabel(y0)!==historyLabel(y1);
+  const lines=S.history.filter(h=>h.t>since).slice(-7).reverse();
+  const ad=S.visitor.adopted.map(agentById).filter(Boolean);const seen=S.visitor.lastSeen||{};
+  const comps=ad.map(a=>{const news=(a.mem||[]).filter(m=>m.t>(seen[a.id]||since)).slice(0,3);emote(a,"love",6);return`<div class="comp"><h4>${esc(a.name)} missed you</h4>${news.length?`<ul>${news.map(m=>`<li>${esc(m.text)}</li>`).join("")}</ul>`:`<p class="muted">A quiet time. Nothing new to tell.</p>`}</div>`;}).join("");
+  const facts=[`${words.length} new word${words.length===1?"":"s"}`,`${born.length} new letter${born.length===1?"":"s"}`];if(found.length)facts.push(`${found.length} discover${found.length===1?"y":"ies"}`);if(chaps.length)facts.push(`${chaps.length} new chapter${chaps.length===1?"":"s"}`);
+  const where=WORLD.on&&WORLD.mode==="world"?"The World":"This valley";
+  openSheet(`<h2 id="sheetTitle">While you were away</h2><p class="muted">You were gone ${spanText(gap)}. ${where} kept living: ${facts.join(", ")}.${moved?` History moved on from ${esc(historyLabel(y0))} to ${esc(historyLabel(y1))}.`:""}</p>
+    ${lines.length?`<ul class="away">${lines.map(h=>`<li><span class="muted">${esc(timeAgo(h.t))}</span> ${esc(h.text)}</li>`).join("")}</ul>`:""}${comps}
+    <div class="actions"><button class="main" id="awGo">Carry on</button><button id="awStory">Story so far</button>${ad.length?`<button id="awDash">Your letters</button>`:""}</div>`,"welcome");
+  document.getElementById("awGo").onclick=closeSheet;document.getElementById("awStory").onclick=openStory;const d=document.getElementById("awDash");if(d)d.onclick=openDashboard;}
+
+
+const MOVE_ME="letterheads_valley_me";
+// The owner's valley: this device's saved copy, or the server's copy when that one lived later (another device of
+// the owner kept it since), with this person's own companions and settings kept either way.
+function ownValleyText(){const local=localStorage.getItem(SAVE_KEY),snap=WORLD.snapText;if(!snap)return local;
+  let L=null,R=null;try{L=local&&JSON.parse(local);}catch(e){}try{R=JSON.parse(snap);}catch(e){}if(!R||!R.S)return local;
+  if(L&&L.S&&(L.S.livedAt||0)>=(R.S.livedAt||0)&&L.S.created===R.S.created)return local;
+  let me=null;try{me=JSON.parse(localStorage.getItem(MOVE_ME)||"null");}catch(e){}
+  const src=L&&L.S&&L.S.created===R.S.created?L.S:me||{};
+  R.S.visitor=Object.assign({adopted:[],gifts:1,standing:0,deeds:[],lastUse:{},tier:0,sparks:5,sparkLog:[],rep:4,repN:0,repLog:[]},src.visitor||{});
+  R.S.settings=Object.assign({camera:"director",reduce:false,night:true,sound:false,vol:.6},src.settings||{});
+  R.S.visitor.adopted=(R.S.visitor.adopted||[]).filter(id=>R.S.agents.some(a=>a.id===id));
+  return JSON.stringify({S:R.S,nextId:R.nextId||5000});}
+async function b64pack(obj){const s=JSON.stringify(obj);let bytes;
+  if(window.CompressionStream)bytes=new Uint8Array(await new Response(new Blob([s]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());else bytes=new TextEncoder().encode(s);
+  let bin="";for(const b of bytes)bin+=String.fromCharCode(b);return(window.CompressionStream?"z":"p")+btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+async function b64unpack(t){const kind=t[0];const bin=atob(t.slice(1).replace(/-/g,"+").replace(/_/g,"/"));const u=Uint8Array.from(bin,c=>c.charCodeAt(0));
+  const s=kind==="z"?await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream("gzip"))).text():new TextDecoder().decode(u);return JSON.parse(s);}
+const trimVisitor=v=>v&&{...v,deeds:(v.deeds||[]).slice(0,30),sparkLog:(v.sparkLog||[]).slice(0,20),repLog:(v.repLog||[]).slice(0,20)};
+async function moveLink(){const get=k=>{try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}};
+  const me=get("letterheads_me_v1"),valley=WORLD.my();let vme=null;
+  if(valley){const own=WORLD.own&&S?{visitor:S.visitor,settings:S.settings}:(get(SAVE_KEY)||{}).S;if(own)vme={visitor:trimVisitor(own.visitor),settings:own.settings};}
+  const data={v:1,at:Date.now(),me:me&&{visitor:trimVisitor(me.visitor),settings:me.settings},valley,vme};
+  return location.origin+"/play/#move="+await b64pack(data);}
+function moveSection(){return`<h3>On another device</h3><p class="muted">Your companions, sparks and your own valley are kept in this browser. A private link moves them to your phone or another computer.</p>
+  <div class="actions"><button id="mvMake">Make a link to move them</button></div><p class="vlink" id="mvLink" hidden></p><p class="muted" id="mvOut" aria-live="polite"></p>`;}
+function bindMove(){const b=document.getElementById("mvMake");if(!b)return;b.onclick=async()=>{const u=await moveLink();const el=document.getElementById("mvLink");el.textContent=u;el.hidden=false;
+  let copied=false;try{await navigator.clipboard.writeText(u);copied=true;}catch(e){}
+  document.getElementById("mvOut").textContent=(copied?"Copied. ":"")+"Open this link on the other device. Keep it to yourself: anyone who opens it gets your letters and your valley.";};}
+// arriving with a move link: say what will move, and move it only when the person says so
+async function takeMove(){const m=/^#move=([A-Za-z0-9_-]+)$/.exec(location.hash);if(!m)return;let d=null;try{d=await b64unpack(m[1]);}catch(e){}
+  history.replaceState(null,"",location.pathname+location.search);if(!d||d.v!==1)return;
+  const n=(d.me&&d.me.visitor&&d.me.visitor.adopted||[]).length,vn=d.valley&&d.valley.id?`${d.valley.name||"your"}${d.valley.name?"'s":""} valley`:null;
+  const mine=WORLD.my(),clash=d.valley&&mine&&mine.id!==d.valley.id,hasOwn=!!localStorage.getItem(SAVE_KEY);
+  const yes=await new Promise(res=>{openSheet(`<h2 id="sheetTitle">Move your letters here?</h2><p class="muted">From your other device: ${n} companion${n===1?"":"s"} in The World${vn?`, and ${esc(vn)}`:""}. They replace whatever this browser has.${(clash||(!mine&&d.valley&&hasOwn))?" This browser's own valley is kept aside, not deleted.":""}</p>
+    <div class="actions"><button class="main" id="mvYes">Move them here</button><button id="mvNo">Not now</button></div>`,"move");
+    document.getElementById("mvYes").onclick=()=>res(true);document.getElementById("mvNo").onclick=()=>res(false);document.getElementById("sheetClose").addEventListener("click",()=>res(false),{once:true});});
+  if(!yes){closeSheet();return;}
+  try{if(d.me)localStorage.setItem("letterheads_me_v1",JSON.stringify(d.me));
+    if(d.valley&&d.valley.id&&d.valley.token){if(!mine||mine.id!==d.valley.id){const old=localStorage.getItem(SAVE_KEY);if(old)localStorage.setItem(SAVE_KEY+"_kept_"+Date.now(),old);localStorage.removeItem(SAVE_KEY);}
+      localStorage.setItem("letterheads_valley_v1",JSON.stringify(d.valley));if(d.vme)localStorage.setItem(MOVE_ME,JSON.stringify(d.vme));}}catch(e){}
+  location.replace("/play/"+(params.get("world")?"?world="+encodeURIComponent(params.get("world")):""));await new Promise(()=>{});}
+
 function save(){if(WORLD.remote)return;if(WORLD.on&&!WORLD.own){WORLD.savePersonal();return;}try{localStorage.setItem(SAVE_KEY,JSON.stringify({S,nextId}));}catch(e){}}
-function load(){try{const raw=WORLD.on&&!WORLD.own?WORLD.snapText:localStorage.getItem(SAVE_KEY);if(!raw)return false;const d=JSON.parse(raw);if(!d||!d.S||d.S.v!==3)return false;S=d.S;nextId=d.nextId||5000;if(WORLD.on&&!WORLD.own){WORLD.personal();if(d.stories)stories=d.stories;}S.history=S.history||[];S.wordLog=S.wordLog||{};S.visitor.sparks=S.visitor.sparks??5;S.visitor.sparkLog=S.visitor.sparkLog||[];S.moments=S.moments||[];S.beasts=S.beasts||[];S.visitor.rep=S.visitor.rep??4;S.visitor.repN=S.visitor.repN||0;S.visitor.repLog=S.visitor.repLog||[];if(!S.chapters){S.chapters=[];startChapter("wanderers");}
+function load(){try{const raw=WORLD.on&&!WORLD.own?WORLD.snapText:WORLD.on&&WORLD.own?ownValleyText():localStorage.getItem(SAVE_KEY);if(!raw)return false;const d=JSON.parse(raw);if(!d||!d.S||d.S.v!==3)return false;S=d.S;nextId=d.nextId||5000;if(WORLD.on&&!WORLD.own){WORLD.personal();if(d.stories)stories=d.stories;}S.history=S.history||[];S.wordLog=S.wordLog||{};S.visitor.sparks=S.visitor.sparks??5;S.visitor.sparkLog=S.visitor.sparkLog||[];S.moments=S.moments||[];S.beasts=S.beasts||[];S.visitor.rep=S.visitor.rep??4;S.visitor.repN=S.visitor.repN||0;S.visitor.repLog=S.visitor.repLog||[];if(!S.chapters){S.chapters=[];startChapter("wanderers");}
   S.agents.forEach(a=>{if(!a.crossing){a.act=null;a.decideAt=S.simT+rnd()*2;}a.tr.ambition??=rnd();a.tr.greed??=rnd()*.9;a.tr.envy??=rnd()*.9;a.dreamsDone??=0;});S.words.forEach(w=>{if(w.state==="forming"||w.state==="healing")wordMembers(w).forEach(m=>{if(m&&!m.crossing)m.act={type:"meet",wp:null};});});return true;}catch(e){return false;}}
 setInterval(save,15000);document.addEventListener("visibilitychange",()=>{if(document.hidden)save();});
 // ================= start =================
@@ -2367,7 +2452,7 @@ else if(TERRA_READY&&S.place!==placeKey(yearsAgo())){MAP=null;relocate(true);}
 else{genWorld(TERRA_READY?S.place:undefined);(S.structs||[]).filter(t=>t.type==="bridge"&&t.built).forEach(addBridge);}if(S.settings.camera==="fixed")cam.mode="free";
 if(WORLD.on)WORLD.started();buildTerrain();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(MAP.place==null)buildTerrain();});
 cam.x=cam.tx=HOME.x;cam.y=cam.ty=HOME.y;cam.z=cam.tz=Math.min(1,W/1500);
-updateCaption();requestAnimationFrame(frame);if(loadedExisting)setTimeout(()=>{if(S.visitor.adopted.length)showWelcome();else showStoryToast();},2500);
+awayStart();updateCaption();if(loadedExisting&&!WORLD.mirror&&S.livedAt&&Date.now()-S.livedAt>LIVING.min)catchUp().then(()=>setTimeout(showAway,600));else setTimeout(showAway,2500);if(!S.livedAt&&!WORLD.mirror)S.livedAt=Date.now();requestAnimationFrame(frame);
 if(!S.settings.introSeen){const ib=document.getElementById("intro");ib.style.display="flex";const close=(sound)=>{ib.style.display="none";S.settings.introSeen=true;if(sound)setSound(true);save();};
   document.getElementById("introGo").onclick=()=>{close(true);atlasIntroGo();};document.getElementById("introTour").onclick=()=>{close(true);startTour();};document.getElementById("introQuiet").onclick=()=>{close(false);atlasIntroGo();};document.getElementById("introGo").focus();setTimeout(()=>{if(ib.style.display!=="none"){close(false);atlasIntroGo();}},14000);}
 {const fn=params.get("follow");if(fn){const a=S.agents.find(x=>x.name.toLowerCase()===fn.toLowerCase());if(a){cam.mode="follow";cam.follow=a.id;updateCaption();}}}
@@ -2379,7 +2464,7 @@ if(/[?&]broadcast\b/.test(location.search)){
   setTimeout(enter,1500);setInterval(enter,60000);
   setInterval(()=>{const e=document.getElementById("eraLine");const parts=e?e.textContent.split(" · "):[];document.getElementById("bEra").textContent=parts.slice(1,3).join(" · ");},1000);
 }
-window.__lango={get world(){return WORLD},wx:WX,get tour(){return tour},startTour:()=>startTour(),get sel(){return sel},w2s:(x,y)=>w2s(x,y),agentById:id=>agentById(id),get S(){return S},get director(){return director},cam,Music,side,get HOME(){return HOME},get CROSS(){return CROSS},get MAP(){return MAP},atlas:{open:()=>{atlasIntroCancel();openAtlas();},dive:()=>{atlasIntroCancel();diveIn();},journey:()=>startJourney(),setYear:y=>{atlasIntroCancel();ATL.year=y;atlasCard();},get state(){return ATL},valleyAt:y=>valleyAt(y),seaLevel:y=>seaLevel(y),iceFrac:y=>iceFrac(y)},relocate:()=>relocate(),get place(){return TERRA_READY?placeNow():null},get placeKey(){return MAP.key}};
+window.__lango={get world(){return WORLD},get living(){return LIVING},wx:WX,get tour(){return tour},startTour:()=>startTour(),get sel(){return sel},w2s:(x,y)=>w2s(x,y),agentById:id=>agentById(id),get S(){return S},get director(){return director},cam,Music,side,get HOME(){return HOME},get CROSS(){return CROSS},get MAP(){return MAP},atlas:{open:()=>{atlasIntroCancel();openAtlas();},dive:()=>{atlasIntroCancel();diveIn();},journey:()=>startJourney(),setYear:y=>{atlasIntroCancel();ATL.year=y;atlasCard();},get state(){return ATL},valleyAt:y=>valleyAt(y),seaLevel:y=>seaLevel(y),iceFrac:y=>iceFrac(y)},relocate:()=>relocate(),get place(){return TERRA_READY?placeNow():null},get placeKey(){return MAP.key}};
 if(!params.get("follow")&&!S.settings.reduce){atlasIntro();if(S.settings.introSeen)atlasIntroGo();}
 });
 })();

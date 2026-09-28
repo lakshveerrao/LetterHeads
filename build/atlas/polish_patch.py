@@ -11,7 +11,7 @@ rep('if(NAMES.includes(args.n))x.name=args.n;',
     'const was=NAMES.includes(args.n)?args.n:null;if(was&&!S.agents.some(o=>o.name===was))x.name=was;const renamed=was&&x.name!==was;')
 # a traveller whose name is already taken here says so, so the sender can still find them
 rep('remember(x,`I travelled here from ${where}.`,true);chron(`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");',
-    'remember(x,renamed?`I travelled here from ${where}, where I was called ${was}. Someone here already had that name, so I became ${x.name}.`:`I travelled here from ${where}.`,true);chron(renamed?`${was}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where} and took the name ${x.name}, because a ${was} already lived here.`:`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");')
+    'remember(x,renamed?`I travelled here from ${where}, where I was called ${was}. Someone here already had that name, so I became ${x.name}.`:`I travelled here from ${where}.`,true);chron(renamed?`${was}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where} and took the name ${x.name}, because ${/^[AEIOU]/.test(was)?"an":"a"} ${was} already lived here.`:`${x.name}, ${art(c)} ${c}, arrived at the Hearth refuge from ${where}.`,"people");')
 rep('if(n!==a.name&&(!NAMES.includes(n)||a.renamed))n=a.name;',
     'if(n!==a.name&&(!NAMES.includes(n)||a.renamed||S.agents.some(o=>o!==a&&o.name===n)))n=a.name;')
 

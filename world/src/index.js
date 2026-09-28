@@ -18,6 +18,10 @@ const CMD_PER_MIN = 30;
 const ARRIVE_GAP = 2 * 60 * 1000;
 const VALLEY_ID = /^[a-z0-9]{6,16}$/;
 const NAME_OK = /^[A-Z][a-z]{1,11}$/; // valley names are built from letter names, which come from the game's own list
+// Every letter in The World carries one of the game's own names, so a keeper that sends anything else is not the game.
+const NAMES = new Set(["Asha","Kofi","Mei","Luca","Amara","Tariq","Yuki","Lars","Zola","Emeka","Leila","Chen","Ines","Ravi","Nia","Omar","Sofia","Kenji","Ayo","Mila","Diego","Hana","Farah","Ivan","Priya","Tomas","Ama","Wen","Elif","Sami","Rosa","Kwame","Lina","Arjun","Noor","Pablo","Aiko","Dara","Maya","Juno","Sade","Pavel","Anya","Kai","Zeynep","Rahim","Lucia","Tariku","Mira","Oskar","Yara","Chidi","Selin","Hugo","Aroha","Minh","Nadia","Felix","Imani","Rohan","Esme","Joon","Talia","Bruno","Keira","Idris","Suki","Mateo","Freya","Ade","Lian","Nour"]);
+const WORD_OK = /^[A-Z]{2,14}$/;
+const TAG_LIKE = /<[a-z\/!]/i;
 
 export default {
   async fetch(req, env) {
@@ -36,6 +40,12 @@ export default {
     if (url.pathname === "/status") {
       const r = await stub.fetch(new Request(url.origin + "/status?w=" + w, { headers: { "x-lh-world": w } }));
       return json(await r.text());
+    }
+    if (url.pathname === "/restore" || url.pathname === "/backups") {
+      // for the project's owner only (the key is a Worker secret set by the deploy workflow): list the hourly backups
+      // of The World, or put one back
+      const r = await stub.fetch(new Request(url.origin + url.pathname + url.search, { method: req.method, headers: { "x-lh-world": w, "x-lh-key": req.headers.get("x-lh-key") || "" } }));
+      return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json", ...cors } });
     }
     if (url.pathname === "/valleys") {
       const r = await env.DIR.get(env.DIR.idFromName("all")).fetch(new Request(url.origin + "/list"));
@@ -65,6 +75,7 @@ export class World {
     this.meta = null;
     this.reportedAt = 0;
     this.arrivals = new Map(); // ip -> time, in The World
+    this.guard = null; // what The World's last good snapshot said: {created, simT, agents, nextId}
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const s = await ctx.storage.get("snap");
       if (s) { this.snap = new Uint8Array(s); this.snapAt = (await ctx.storage.get("snapAt")) || 0; }
@@ -85,6 +96,7 @@ export class World {
       const n = [...this.clients.values()].filter((c) => c.hello && !c.courier).length;
       return new Response(JSON.stringify({ online: n, keeper: !!this.keeper, updated: this.snapAt, name: this.meta?.name || null }));
     }
+    if (url.pathname === "/restore" || url.pathname === "/backups") return this.admin(req, url);
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     server.accept();
@@ -120,7 +132,86 @@ export class World {
     for (const [id, c] of this.clients) if (c.hello && !c.courier) this.send(id, { t: "count", n, live: !!this.keeper });
   }
 
-  canKeep(c) { return this.isValley ? c.owner : !c.courier; }
+  canKeep(c) { return this.isValley ? c.owner : !c.courier && !c.barred; }
+
+  // The World is kept by a visitor's browser, so what it sends is checked against what the game itself can produce:
+  // the same world (never a different or reset one), time that only moves forward, letters that only come and never
+  // vanish in bulk, names from the game's list, words in capitals, and no markup. A keeper that fails is replaced and
+  // never keeps again on that connection; everyone keeps the last good world.
+  async unpack(bytes) {
+    if (bytes[0] === 1) return await new Response(new Blob([bytes.subarray(1)]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    return new TextDecoder().decode(bytes.subarray(1));
+  }
+  guardFrom(d) { return { created: d.S.created, simT: d.S.simT, agents: d.S.agents.length, nextId: d.nextId || 0 }; }
+  async checkSnap(bytes) {
+    let d;
+    try { d = JSON.parse(await this.unpack(bytes)); } catch (e) { return "unreadable"; }
+    const S = d && d.S;
+    if (!S || S.v !== 3 || typeof S.created !== "number" || typeof S.simT !== "number") return "shape";
+    if (!Array.isArray(S.agents) || S.agents.length > 90) return "agents";
+    for (const a of S.agents) if (!a || !NAMES.has(a.name) || typeof a.ch !== "string" || !/^[A-Z]$/.test(a.ch)) return "letter";
+    if (!Array.isArray(S.words) || S.words.length > 120) return "words";
+    for (const w of S.words) if (!w || typeof w.text !== "string" || !WORD_OK.test(w.text)) return "word";
+    for (const k of ["chronicle", "history", "moments"]) {
+      const list = S[k];
+      if (list == null) continue;
+      if (!Array.isArray(list) || list.length > 3100) return k;
+      for (const e of list) if (!e || typeof e.text !== "string" || e.text.length > 400 || TAG_LIKE.test(e.text)) return k;
+    }
+    if (!this.guard && this.snap) { try { const o = JSON.parse(await this.unpack(this.snap)); if (o && o.S && Array.isArray(o.S.agents)) this.guard = this.guardFrom(o); } catch (e) {} }
+    const g = this.guard;
+    if (g) {
+      if (S.created !== g.created) return "another world";
+      if (S.simT < g.simT - 30) return "time went back";
+      if (S.agents.length < g.agents - 3) return "letters vanished";
+      if ((d.nextId || 0) < g.nextId) return "ids went back";
+    }
+    this.guard = this.guardFrom(d);
+    return null;
+  }
+  checkLive(m) {
+    if (!Array.isArray(m.A) || m.A.length > 90) return "agents";
+    for (const a of m.A) if (!a || !NAMES.has(a.name) || typeof a.ch !== "string" || !/^[A-Z]$/.test(a.ch)) return "letter";
+    if (!Array.isArray(m.W) || m.W.length > 120) return "words";
+    for (const w of m.W) if (!w || typeof w.text !== "string" || !WORD_OK.test(w.text)) return "word";
+    if (this.guard && (m.A.length < this.guard.agents - 3 || m.T < this.guard.simT - 30)) return "not this world";
+    return null;
+  }
+  bar(id, why) {
+    const c = this.clients.get(id);
+    if (!c) return;
+    console.log("barred a keeper:", why);
+    c.barred = true;
+    if (this.keeper === id) { this.send(id, { t: "role", keeper: false }); this.keeper = null; this.elect(id); }
+    if (this.snap) this.send(id, this.snap);
+  }
+
+  // Owner tools (The World only): list the hourly backups, or put one back. The keeper is replaced by a visitor who
+  // has loaded the restored world, and that keeper then lives through the time since the backup.
+  async admin(req, url) {
+    const key = req.headers.get("x-lh-key") || "";
+    if (this.isValley || !this.env.KEEPER_KEY || key !== this.env.KEEPER_KEY) return new Response(JSON.stringify({ error: "not allowed" }), { status: 403 });
+    const list = [];
+    for (let h = 0; h < 24; h++) { const at = await this.ctx.storage.get("bakAt" + h); if (at) list.push({ bak: h, at }); }
+    list.sort((a, b) => b.at - a.at);
+    if (url.pathname === "/backups") return new Response(JSON.stringify({ now: Date.now(), backups: list }));
+    if (req.method !== "POST") return new Response(JSON.stringify({ error: "use POST" }), { status: 405 });
+    const ago = Math.max(0, Math.min(23, parseInt(url.searchParams.get("hours") || "1", 10) || 0));
+    const pick = list.find((b) => Date.now() - b.at >= ago * 3600 * 1000);
+    if (!pick) return new Response(JSON.stringify({ error: "no backup that old", backups: list }), { status: 404 });
+    const buf = await this.ctx.storage.get("bak" + pick.bak);
+    if (!buf) return new Response(JSON.stringify({ error: "backup missing" }), { status: 404 });
+    this.snap = new Uint8Array(buf);
+    this.snapAt = Date.now();
+    this.guard = null;
+    try { const o = JSON.parse(await this.unpack(this.snap)); this.guard = this.guardFrom(o); } catch (e) {}
+    await this.ctx.storage.put({ snap: buf, snapAt: this.snapAt });
+    this.persistedAt = Date.now();
+    if (this.keeper) { this.send(this.keeper, { t: "role", keeper: false }); this.keeper = null; }
+    for (const [id, c] of this.clients) if (c.hello && !c.courier) this.send(id, this.snap);
+    setTimeout(() => this.elect(null), 1500);
+    return new Response(JSON.stringify({ restored: pick }));
+  }
 
   async onMessage(id, data) {
     const c = this.clients.get(id);
@@ -130,6 +221,11 @@ export class World {
       if (id !== this.keeper) return;
       const bytes = new Uint8Array(data);
       if (bytes.length > MAX_SNAPSHOT || bytes.length < 2) return;
+      if (!this.isValley) {
+        const bad = await this.checkSnap(bytes);
+        if (bad) { this.bar(id, "snapshot: " + bad); return; }
+        if (id !== this.keeper) return;
+      }
       this.snap = bytes; this.snapAt = Date.now(); this.keeperHeard = Date.now();
       this.toWatchers(bytes);
       if (Date.now() - this.persistedAt > PERSIST_EVERY) this.persist();
@@ -160,7 +256,7 @@ export class World {
           this.keeper = id; this.keeperHeard = Date.now(); keeper = true;
         }
         this.send(id, { t: "welcome", id, keeper, owner: c.owner, hasSnap: !!this.snap, n: this.people(), live: !!this.keeper, valley: this.isValley, name: this.meta?.name || null });
-        if (this.snap && !(keeper && this.isValley)) this.send(id, this.snap);
+        if (this.snap) this.send(id, this.snap); // a valley owner gets it too: their other device may have kept it since
         if (keeper) this.flushInbox();
         this.count();
         break;
@@ -173,6 +269,7 @@ export class World {
         break;
       case "live":
         if (id !== this.keeper) return;
+        if (!this.isValley) { const bad = this.checkLive(m); if (bad) { this.bar(id, "live: " + bad); return; } }
         this.keeperHeard = Date.now();
         this.toWatchers(data);
         break;
@@ -291,7 +388,7 @@ export class World {
     // one backup per hour of the day, so a bad keeper can be undone
     const h = new Date().getUTCHours();
     const last = await this.ctx.storage.get("bakHour");
-    if (last !== h) await this.ctx.storage.put({ ["bak" + h]: buf, bakHour: h });
+    if (last !== h || !(await this.ctx.storage.get("bakAt" + h))) await this.ctx.storage.put({ ["bak" + h]: buf, ["bakAt" + h]: Date.now(), bakHour: h });
   }
 }
 

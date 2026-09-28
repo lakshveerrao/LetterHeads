@@ -11,12 +11,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The owner key (for restoring The World from a backup, or a trusted always-on keeper) is derived from the
+      # Cloudflare token, so it needs no extra setup and never appears anywhere; restore.yml derives the same key.
+      - name: Derive the owner key
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          KEY=$(printf '%s' "$CF:letterheads-keeper" | sha256sum | cut -c1-48)
+          echo "::add-mask::$KEY"
+          echo "KEEPER_KEY=$KEY" >> "$GITHUB_ENV"
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: world
           wranglerVersion: "4.142.0"
+          secrets: |
+            KEEPER_KEY
+        env:
+          KEEPER_KEY: ${{ env.KEEPER_KEY }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -1,0 +1,32 @@
+name: Restore The World
+
+# Puts The World back as it was some hours ago, from its hourly backups, if someone ever damages it.
+# Run it from the Actions tab: "Restore The World", then "Run workflow". With "list only" it just shows the backups.
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "How many hours back (1 to 23)"
+        default: "1"
+      list_only:
+        description: "Only list the backups"
+        type: boolean
+        default: true
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive the owner key
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          KEY=$(printf '%s' "$CF:letterheads-keeper" | sha256sum | cut -c1-48)
+          echo "::add-mask::$KEY"
+          echo "KEEPER_KEY=$KEY" >> "$GITHUB_ENV"
+      - name: Backups
+        run: curl -sS -H "x-lh-key: $KEEPER_KEY" "https://letterheads-world.venky24aug.workers.dev/backups?w=world"; echo
+      - name: Restore
+        if: ${{ !inputs.list_only }}
+        run: curl -sS -X POST -H "x-lh-key: $KEEPER_KEY" "https://letterheads-world.venky24aug.workers.dev/restore?w=world&hours=${{ inputs.hours }}"; echo

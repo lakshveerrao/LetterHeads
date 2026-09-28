@@ -145,6 +145,8 @@ exec(open(O+'product_patch.py').read())
 exec(open(O+'growth_patch.py').read())
 exec(open(O+'shared_patch.py').read())
 exec(open(O+'polish_patch.py').read())
+exec(open(O+'living_patch.py').read())
+exec(open(O+'move_patch.py').read())
 exec(open(O+'broadcast_patch.py').read())
 open(O+'letterheads.html','w').write(s)
 open(O+'../../site/play/index.html','w').write(s)  # the live site serves the game at /play/
