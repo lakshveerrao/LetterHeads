@@ -425,7 +425,7 @@ function newWorld(){
     wx:{rain:false,until:0,next:420+rnd()*300,level:0,flooded:false},bridge:{built:false,word:null},
     wordLog:{},moments:[],beasts:[],visitor:{adopted:[],gifts:1,standing:0,deeds:[],lastUse:{},tier:0,sparks:5,sparkLog:[],rep:4,repN:0,repLog:[]},settings:{camera:"director",reduce:false,night:true,sound:false,vol:.6}};
   nextId=1;const hc=side(HOME.x,HOME.y);
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").filter(c=>!LATE[c]).forEach(ch=>{let x=HOME.x,y=HOME.y;for(let t=0;t<60;t++){x=HOME.x+(rnd()-.5)*1100;y=HOME.y+(rnd()-.5)*800;if(side(x,y)===hc&&!MAP.bank[cellIdx(x,y)]&&biomeAt(x,y)!==5)break;}const a=makeAgent(ch,x,y,now,false);a.lastComp=hc;S.agents.push(a);});
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").filter(c=>!LATE[c]),..."EEIORLD"].flat().forEach(ch=>{let x=HOME.x,y=HOME.y;for(let t=0;t<60;t++){x=HOME.x+(rnd()-.5)*1100;y=HOME.y+(rnd()-.5)*800;if(side(x,y)===hc&&!MAP.bank[cellIdx(x,y)]&&biomeAt(x,y)!==5)break;}const a=makeAgent(ch,x,y,now,false);a.lastComp=hc;S.agents.push(a);});
   MAP.trees.forEach(t=>S.trees.push({x:t.x,y:t.y,fruit:Math.max(1,t.max-1),max:t.max,t:rnd()*30}));
   MAP.res.forEach((r,i)=>S.res.push({id:i,type:r.type,x:r.x,y:r.y,amt:r.max,max:r.max,t:0}));
   S.seenBiomes[biomeAt(HOME.x,HOME.y)]=1;
@@ -649,7 +649,7 @@ function formable(a){return!a.word&&!a.young&&a.act?.type!=="meet"&&!urgentNeed(
 function wordMembers(w){return w.members.map(id=>id?agentById(id):null);}
 function wordCat(a){const w=wordById(a.word);return w&&w.state!=="forming"?CAT[w.text]:null;}
 function tryFormWord(a){
-  const free=S.agents.filter(b=>b!==a&&formable(b)&&dist(a,b)<380&&side(a.x,a.y)===side(b.x,b.y));
+  const free=S.agents.filter(b=>b!==a&&formable(b)&&dist(a,b)<(a.reach||380)&&side(a.x,a.y)===side(b.x,b.y));
   const byCh={};free.forEach(b=>(byCh[b.ch]=byCh[b.ch]||[]).push(b));
   let best=null;
   for(const w of DICT){
@@ -663,10 +663,10 @@ function tryFormWord(a){
     if(REQ[w])score+=1.4;if(!S.discovered.includes(w))score+=.4;
     if(!best||score>best.score)best={w,pick,score};
   }
-  if(!best)return false;
+  if(!best){a.reach=Math.min(1000,(a.reach||380)+90);return false;}
   const refusers=best.pick.filter(b=>trust(b,a)*.8+(1-b.social)*.55+b.tr.curiosity*.15+rnd()*.45<.42);
   if(refusers.length){const r=refusers[0];remember(a,`Asked ${r.name} to form ${best.w}, but ${r.name} said no.`);bond(a,r,-.04);remember(r,`${a.name} asked me to become ${best.w}. I wasn't ready.`);r.refused=r.refused||{};r.refused[best.w]=S.simT;a.why=[`Wanted to form ${best.w}, but ${r.name} refused`];return false;}
-  const members=[a,...best.pick];const text=best.w;const order=[];const pool=[...members];
+  const members=[a,...best.pick];members.forEach(m=>m.reach=380);const text=best.w;const order=[];const pool=[...members];
   for(const c of text){const i=pool.findIndex(m=>m.ch===c);order.push(pool[i].id);pool.splice(i,1);}
   const cx=members.reduce((t,m)=>t+m.x,0)/members.length,cy=members.reduce((t,m)=>t+m.y,0)/members.length;
   const w={id:nextId++,text,x:clamp(cx,170,WORLD_W-170),y:clamp(cy,200,WORLD_H-130),width:wordWidth(text),members:order,tint:S.words.length+Math.floor(rnd()*6),state:"forming",formed:S.simT,store:0,grace:0,missing:-1,lastBirth:S.simT,proposer:a.id,project:null,projAt:0};
@@ -1086,12 +1086,16 @@ function renownTick(){const ws=S.words.filter(w=>w.state!=="forming");if(ws.leng
     if(Math.min(ra,rb)>=8&&Math.abs(ra-rb)<=4){S.rivals[key]=1;chron(`${a.text} and ${b.text} have become rivals, each proud of its own deeds.`,"tension");addStory({kind:"rivals",ids:[...a.members.filter(Boolean).slice(0,2),...b.members.filter(Boolean).slice(0,2)],text:`${a.text} and ${b.text} have become rivals.`,sub:"Neighbours, near equals, each wanting to be first.",score:78,dur:14,main:a.members.find(Boolean)});
       for(const m of wordMembers(a))for(const o of wordMembers(b))if(m&&o){bond(m,o,-.1);bond(o,m,-.1);}}}}
 function refugeCheck(){
-  if(S.agents.length>=72)return;S.lastBirth=S.lastBirth||0;S.refugeAt=S.refugeAt||300;if(S.simT<S.refugeAt)return;S.refugeAt=S.simT+200;if(S.simT-S.lastBirth<500)return;
+  if(S.agents.length>=72)return;S.lastBirth=S.lastBirth||0;const stuck=S.agents.length<40&&stuckLetters().length>=3;S.refugeAt=S.refugeAt||(stuck?120:300);if(S.simT<S.refugeAt)return;S.refugeAt=S.simT+(stuck?60:200);if(S.simT-S.lastBirth<(stuck?120:500))return;
   const ch=neededLetter();const x=makeAgent(ch,REFUGE.x+(rnd()-.5)*60,REFUGE.y+30,Date.now(),false);S.agents.push(x);S.lastBirth=S.simT;
   remember(x,"I began at the Hearth refuge, where the valley shelters newcomers.");chron(`A new ${ch} named ${x.name} began life at the Hearth refuge.`,"life");
   addStory({kind:"arrival",ids:[x.id],text:`${x.name}, a new ${ch}, begins life at the Hearth refuge.`,sub:"When births slow, the refuge shelters newcomers. Where will they belong?",score:72,dur:20,main:x.id});Music.birth();
 }
-function neededLetter(){const wd=S.words.find(w=>w.state==="wounded");if(wd)return wd.text[wd.missing];const counts={};S.agents.forEach(a=>counts[a.ch]=(counts[a.ch]||0)+1);
+function stuckLetters(){return S.agents.filter(a=>!a.word&&!a.young);}
+function unlockLetter(){const free={};stuckLetters().forEach(a=>free[a.ch]=(free[a.ch]||0)+1);const score={};
+  for(const w of DICT){if(REQ[w])continue;const have={...free};const miss=[];for(const c of w){if(have[c])have[c]--;else miss.push(c);}if(miss.length===1)score[miss[0]]=(score[miss[0]]||0)+1;}
+  const best=Object.keys(score).filter(c=>!LATE[c]||S.lateBorn?.[c]).sort((p,q)=>score[q]-score[p]+(rnd()-.5)*.5)[0];return best||null;}
+function neededLetter(){const wd=S.words.find(w=>w.state==="wounded");if(wd)return wd.text[wd.missing];{const u=stuckLetters().length>=2?unlockLetter():null;if(u&&rnd()<.8)return u;}const counts={};S.agents.forEach(a=>counts[a.ch]=(counts[a.ch]||0)+1);
   const low=[..."EOARTLSNI"].sort((p,q)=>(counts[p]||0)-(counts[q]||0))[0];const pool="EEEOOORRLLSSTANI";return rnd()<.6?low:pool[Math.floor(rnd()*pool.length)];}
 const CHAPTERS={wanderers:{title:"The wanderers",desc:"Letters wake knowing nothing, and learn the valley by walking it."},
   crossing:{title:"The crossing",desc:"The river stops being the edge of the world.",c:"cross",test:()=>S.agents.filter(a=>knows(a,"cross")).length>=2},
