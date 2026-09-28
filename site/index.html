@@ -156,7 +156,7 @@ footer nav a{font-size:14px}
         <a class="btn main" href="/play/"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Play now</a>
         <a class="btn" href="#trailer">Watch the trailer</a>
       </div>
-      <p class="note">Free. No account. Runs in your browser on a phone or a computer.</p>
+      <p class="note">One world, shared live by everyone who visits. Free, no account, on a phone or a computer.<span id="liveNow" hidden></span></p>
     </div>
     <figure class="shot">
       <img src="/img/family.jpg" width="1600" height="1000" alt="A family of letter characters with glowing heads gathers by a winding river among fruit trees.">
@@ -266,11 +266,11 @@ footer nav a{font-size:14px}
       <div class="head"><h2 id="faqTitle">Questions</h2></div>
       <dl class="faq">
         <div><dt>Is it free?</dt><dd>Yes. There are no ads and nothing to buy.</dd></div>
-        <div><dt>Do I need an account?</dt><dd>No. Your world is saved in your browser on this device. Clearing your browser's site data clears your world.</dd></div>
+        <div><dt>Do I need an account?</dt><dd>No. Everyone who visits shares the same world. Your adopted letters and sparks are remembered in your browser on this device, so clearing its site data forgets them.</dd></div>
         <div><dt>Does it work on my phone?</dt><dd>Yes. It runs in any modern browser on a phone, tablet or computer. Nothing to install.</dd></div>
-        <div><dt>Does it keep running when I leave?</dt><dd>The world lives while the page is open, so leave it running in a tab or on a spare screen. It is saved as it goes, and it picks up where it left off when you return.</dd></div>
+        <div><dt>Does it keep running when I leave?</dt><dd>It keeps living as long as anyone, anywhere, has it open. When nobody is watching it rests, and it wakes exactly where it was when the next person arrives.</dd></div>
         <div><dt>Is the history accurate?</dt><dd>The ground, rivers, coasts and sea levels come from scientific data. The letters and their lives are the game's own. Dates still awaiting expert review are marked as such.</dd></div>
-        <div><dt>Is anything tracked?</dt><dd>No. The game collects nothing about you. Fonts load from Google Fonts.</dd></div>
+        <div><dt>Is anything tracked?</dt><dd>No. The game collects nothing about you, and the world server keeps only the world itself. Fonts load from Google Fonts.</dd></div>
       </dl>
     </div>
   </section>
@@ -295,5 +295,10 @@ footer nav a{font-size:14px}
   </div>
 </footer>
 
+<script>
+fetch("/world.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.url)return;
+  return fetch(j.url.replace(/^ws/,"http").replace(/\/ws$/,"/status"),{cache:"no-store"}).then(r=>r.json()).then(st=>{if(!st||!(st.online>0))return;
+    const el=document.getElementById("liveNow");el.textContent=" "+st.online+(st.online===1?" person is":" people are")+" in the valley right now.";el.hidden=false;});}).catch(()=>{});
+</script>
 </body>
 </html>
