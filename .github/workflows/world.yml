@@ -16,3 +16,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: world
+          wranglerVersion: "4.142.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the live server
+        run: node world/smoke.mjs https://letterheads-world.venky24aug.workers.dev
