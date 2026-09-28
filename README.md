@@ -18,6 +18,10 @@ Live at **https://letterheads.live** · Play at **https://letterheads.live/play/
 
 The site deploys with GitHub Pages: `.github/workflows/pages.yml` publishes the `site` folder on every push to `main`. `site/CNAME` holds the domain, letterheads.live, whose DNS (at Hostinger) points to GitHub Pages.
 
+## Live on YouTube
+
+`letterheads.live/play/?broadcast` shows the world as a clean picture for a 24/7 stream: no buttons, a large caption, a LIVE badge, and the camera always following the best story. `stream/` holds a Docker image that opens that page on a virtual screen and sends it to YouTube Live. See `stream/README.md`. The stream key stays on the server and is never committed.
+
 ## Data and credits
 
 Satellite imagery: contains modified Copernicus Sentinel data 2021 to 2023. Land cover: ESA WorldCover 10 m 2021 v200. Elevation: Tilezen terrain tiles on AWS (SRTM, GMTED, ETOPO1 and others). Earth imagery: NASA Blue Marble Next Generation. Sea level after Spratt and Lisiecki (2016) and Lambeck et al. (2014). Per-site vegetation sources are listed in `build/terrain/places.json` and in the game under About the Atlas.

@@ -142,6 +142,7 @@ rep('ctx.imageSmoothingEnabled=true;ctx.drawImage(terrain,0,0,WORLD_W,WORLD_H);d
 
 exec(open(O+'trailer_patch.py').read())
 exec(open(O+'product_patch.py').read())
+exec(open(O+'broadcast_patch.py').read())
 open(O+'letterheads.html','w').write(s)
 open(O+'../../site/play/index.html','w').write(s)  # the live site serves the game at /play/
 print(len(s))
