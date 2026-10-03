@@ -516,6 +516,19 @@ export class Page {
       await st.put({ seen, page });
       return ok({ ok: true });
     }
+    if (url.pathname === "/page/give" && req.method === "POST") {
+      // a friend answers "I'm one Q away from QUEEN": the owner gets the letter (and 10 sparks) next time they play
+      if (!page) return bad("no page", 404);
+      const vt = String(b.vt || ""), ch = String(b.ch || "");
+      if (!/^[a-z0-9]{12,24}$/.test(vt) || !/^[A-Z]$/.test(ch) || vt === page.ownerVt) return bad("bad gift");
+      if (page.gday !== day) { page.gday = day; page.givers = []; }
+      page.givers = page.givers || []; page.gifts = page.gifts || [];
+      if (page.givers.includes(vt)) return ok({ ok: false, why: "already" });
+      if (page.givers.length >= 5 || page.gifts.length >= 5) return ok({ ok: false, why: "full" });
+      page.givers.push(vt); page.gifts.push(ch);
+      await st.put("page", page);
+      return ok({ ok: true });
+    }
     if ((url.pathname === "/page/save" || url.pathname === "/page/claim") && req.method === "POST") {
       const key = String(b.key || "");
       if (!/^[a-z0-9]{24,48}$/.test(key)) return bad("bad key", 403);
@@ -523,8 +536,8 @@ export class Page {
       if (page && page.keyHash !== h) return bad("not yours", 403);
       if (url.pathname === "/page/claim") {
         if (!page) return bad("no page", 404);
-        const n = page.pending | 0; page.pending = 0; await st.put("page", page);
-        return ok({ n, views: page.views | 0 });
+        const n = page.pending | 0, gifts = page.gifts || []; page.pending = 0; page.gifts = []; await st.put("page", page);
+        return ok({ n, gifts, views: page.views | 0 });
       }
       const data = cleanPage(b.data);
       if (!data) return bad("bad page");

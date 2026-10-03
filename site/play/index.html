@@ -254,6 +254,12 @@ body.atlas-on #clipToast,body.broadcast #clipToast,body.filming #clipToast{displ
 
 .pg-ls{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.pg-ls span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#5A635D}.pg-ls b{width:44px;height:52px;border-radius:10px;background:#F8F9F6;border:2px solid #1F2421;display:flex;align-items:center;justify-content:center;font:700 28px Spectral,Georgia,serif;color:#1F2421}
 .pg-url{word-break:break-all;font-size:12px}
+
+.st-wake:empty{display:none}.st-wake span{flex:1;min-width:200px}
+.pg-ask{background:#FFF3DF;border-radius:14px;padding:12px 14px;margin:12px 0}.pg-ask p{margin:0 0 10px}
+#leadBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(74px + env(safe-area-inset-top,0px));z-index:7;width:min(460px,calc(100% - 24px));display:flex;align-items:center;gap:10px;background:#1F2421;color:#F8F9F6;border-radius:16px;padding:8px 8px 8px 16px;box-shadow:0 6px 24px rgba(0,0,0,.3);font-size:15px}
+#leadBar[hidden]{display:none}#leadBar span{flex:1}body.leading #hCard{top:calc(140px + env(safe-area-inset-top,0px))}
+body.atlas-on #leadBar,body.broadcast #leadBar,body.filming #leadBar{display:none!important}
 body.broadcast .top,body.broadcast .zoom,body.broadcast .tour-btn,body.broadcast #hint,body.broadcast .caption .row,
 body.broadcast #elsewhere,body.broadcast #returnBtn,body.broadcast #storyToast,body.broadcast #trailerDlg,body.broadcast #intro,
 body.broadcast .sheet,body.broadcast #atlasUI .row,body.broadcast #atlasUI .atime,body.broadcast .aclose{display:none!important}
@@ -315,12 +321,13 @@ body.broadcast #bcast{display:block}
 <section id="spellTray" hidden aria-label="Spell a word"><button type="button" class="st-x" id="stClose" aria-label="Close">×</button>
   <div class="st-top"><div id="stTiles" class="st-tiles" aria-live="polite"></div><span id="stCombo" class="st-combo" hidden></span><button type="button" id="stBack" class="st-back" aria-label="Remove the last letter">⌫</button></div>
   <form id="stForm" autocomplete="off"><input id="stIn" maxlength="12" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Type a word" aria-label="Type a word"><button type="button" id="stFilm" class="st-film" aria-pressed="false" aria-label="Film my next word as a 10-second clip" title="Film my next word">🎬</button><button class="btn-primary" id="stSay" disabled>Say it</button></form>
-  <p id="stMsg" class="st-msg" aria-live="polite"></p><div id="stIdeas"></div></section>
+  <div id="stWake" class="st-row st-wake"></div><p id="stMsg" class="st-msg" aria-live="polite"></p><div id="stIdeas"></div></section>
 <div id="coach" role="status" hidden><span></span><button type="button" id="coachOk" class="btn-primary" hidden>Got it</button><button type="button" id="coachX" aria-label="Skip the tips">×</button></div>
 <div id="lvToast" role="status" hidden></div>
 <button type="button" id="hRibbon" aria-label="Open In our world"><i></i><b></b></button>
 <aside id="hCard" role="status" hidden></aside>
 <div id="clipToast" role="status" hidden></div>
+<div id="leadBar" role="status" hidden></div>
 <div id="eraMoment" role="dialog" aria-label="A new age begins" hidden></div>
 <button id="tourBtn" class="tour-btn"><span aria-hidden="true">▶</span> Show me around</button>
 <div id="film" role="dialog" aria-label="A one-minute film of the world" style="display:none">
@@ -41372,6 +41379,7 @@ function perform(a,dt){
   const act=a.act;if(!act)return;act.t+=dt;const w=wordById(a.word);
   switch(act.type){
     case"say":case"await":return;
+    case"led":if(S.simT>act.until||urgentNeed(a))done(a);return;
     case"drink":a.thirst=Math.max(0,a.thirst-dt*(wordCat(a)==="water"?.45:.3));if(a.thirst<=.02||act.t>6){
       if(knows(a,"tool")&&!knows(a,"fish")&&rnd()<.04*discoverChance(a))learn(a,"fish","trying");done(a);}break;
     case"fish":if(act.t>7){const pf=prof(a,"fish");const n=((wordCat(a)==="fish"?2:1)+(pf>=.75?1:0))*(rnd()<.5+pf*.45?1:0);if(n){a.food+=n;remember(a,`Caught ${n} fish.`);practice(a,"fish",.05);}else remember(a,"The fish got away.");done(a);}else observe(a,"fish",.05,dt);break;
@@ -41503,7 +41511,7 @@ function step(dt){
       if(act.wp&&act.wp.length){const wp=act.wp[0];gx=wp.x;gy=wp.y;if(Math.hypot(gx-a.x,gy-a.y)<22)act.wp.shift();}
       const dx=gx-a.x,dy=gy-a.y,d=Math.hypot(dx,dy);const finalLeg=!(act.wp&&act.wp.length);
       if(!finalLeg||(d>(act.type==="meet"?8:24)&&!act.arrived)){const bm=biomeAt(a.x,a.y);const cr=a.crossing!=null?CROSS[a.crossing]:null;
-        let sp=(wordCat(a)==="travel"?52:44)*(act.type==="flee"?1.6:act.type==="say"?1.9:1)*(a.hurt>S.simT?.65:1)*(a.young?.85:1)*(a.energy<.1?.7:1)*(a.sad>.5?.8:1)*(a.carry&&a.carry.t!=="ember"?.85:1)*(bm===5?.6:bm===2?.85:bm===4?.8:1)*(cr?(cr.kind==="ford"?.42:cr.kind==="log"?.55:1):1);
+        let sp=(wordCat(a)==="travel"?52:44)*(act.type==="flee"?1.6:act.type==="say"?1.9:act.type==="led"?1.4:1)*(a.hurt>S.simT?.65:1)*(a.young?.85:1)*(a.energy<.1?.7:1)*(a.sad>.5?.8:1)*(a.carry&&a.carry.t!=="ember"?.85:1)*(bm===5?.6:bm===2?.85:bm===4?.8:1)*(cr?(cr.kind==="ford"?.42:cr.kind==="log"?.55:1):1);
         a.vx=lerp(a.vx,dx/(d||1)*sp,.2);a.vy=lerp(a.vy,dy/(d||1)*sp,.2);}
       else{a.vx*=.7;a.vy*=.7;act.arrived=true;if(act.type!=="meet")perform(a,dt);}
       if(a.act&&!act.arrived){act.travel=(act.travel||0)+dt;if(act.travel>160&&act.type!=="meet")done(a);}
@@ -41969,7 +41977,7 @@ function frame(now){
   if(MAP.place!=null&&TERRA_READY)drawPlaceLabels();
   {const dtm=performance.now()-_t0;perfAvg=perfAvg*.95+dtm*.05;if(perfAvg>14&&LOD_SIMPLE<1.4)LOD_SIMPLE+=.02;else if(perfAvg<7&&LOD_SIMPLE>.72)LOD_SIMPLE-=.01;}
   if(far){for(const a of order){ctx.fillStyle=ember(a);ctx.beginPath();ctx.arc(a.x+10,a.y-40,4.5/cam.z,0,Math.PI*2);ctx.fill();}}
-  else{for(const a of order)drawEmber(a,tAnim);drawBadges();drawSelection();}drawSpoken(tAnim);drawSpellMarks(tAnim);
+  else{for(const a of order)drawEmber(a,tAnim);drawBadges();drawSelection();}drawSpoken(tAnim);drawSpellMarks(tAnim);drawLead();
   ctx.setTransform(DPR,0,0,DPR,0,0);
   if(S.wx.rain&&!S.settings.reduce){ctx.strokeStyle="rgba(200,215,230,.5)";ctx.lineWidth=1;ctx.beginPath();for(const d of rainDrops){d.y+=dtReal*d.s*1.6;if(d.y>1){d.y=0;d.x=Math.random();}const x=d.x*W,y=d.y*H;ctx.moveTo(x,y);ctx.lineTo(x-4,y+14);}ctx.stroke();}
   if(momentFx&&tAnim<momentFx.until){const k=Math.min(1,(momentFx.until-tAnim)/.6,(tAnim-(momentFx.until-4.5))/.6);const bh=Math.round(H*.07*clamp(k,0,1));ctx.fillStyle="#0E1110";ctx.fillRect(0,0,W,bh);ctx.fillRect(0,H-bh,W,bh);
@@ -42434,6 +42442,7 @@ function describe(a){const w=wordById(a.word)||wordById(a.caregiver);const act=a
     case"home":return a.word&&w?`${a.name} is home with ${w.text}.`:a.young&&w?`${a.name} is staying close to ${w.text}.`:`${a.name} is resting nearby.`;
     case"deposit":return w?`${a.name} is bringing food home to ${w.text}.`:`${a.name} is carrying food.`;
     case"takestore":return w?`${a.name} is taking food from ${w.text}'s store.`:`${a.name} is eating.`;
+    case"led":return`${a.name} is following the way a visitor showed.`;
     case"await":return`${a.name} has noticed you, and is waiting to see what you’ll spell.`;
     case"say":{const sp=(S.spoken||[]).find(s=>s.id===act.sp);return sp?(sp.state==="say"?`${a.name} is saying ${sp.text} with the others.`:`${a.name} is hurrying to say ${sp.text}.`):`${a.name} is walking.`;}
     case"meet":return w?`${a.name} is on the way to ${w.text}.`:`${a.name} is walking.`;
@@ -42480,9 +42489,9 @@ function openCard(a){const w=wordById(a.word);const fr=friends(a);const adopted=
   <h3>Doing</h3><p>${esc(describe(a))}</p>${a.dream?`<h3>Dreams</h3><p>${esc(DREAMS[a.dream])}</p>`:""}<h3>Knows how to</h3>${knowTags(a)}<h3>Friends</h3><p>${fr.length?esc(fr.join(", ")):"None yet."}</p>
   <h3>Life memories</h3>${(a.core||[]).length?`<ul>${a.core.slice(0,6).map(m=>`<li><span class="muted">Day ${m.day}:</span> ${esc(m.text)}</li>`).join("")}</ul>`:`<p class="muted">Its life has only just begun.</p>`}
   <h3>Lately</h3><ul>${a.mem.slice(0,3).map(m=>`<li>${esc(m.text)}</li>`).join("")||"<li>Nothing yet.</li>"}</ul>
-  <div class="actions"><button class="main" id="cFollow">Follow ${esc(a.name)}</button><button id="cWhy">Why?</button>${adopted?`<button id="cDash">Your letters</button>`:`<button id="cAdopt">Adopt ${esc(a.name)}</button>`}</div><div id="helpArea"></div>`,"card");
+  <div class="actions"><button class="main" id="cFollow">Follow ${esc(a.name)}</button><button id="cWhy">Why?</button>${adopted?`<button id="cLead">Lead ${esc(a.name)}</button><button id="cDash">Your letters</button>`:`<button id="cAdopt">Adopt ${esc(a.name)}</button>`}</div><div id="helpArea"></div>`,"card");
   document.getElementById("cFollow").onclick=()=>{cam.mode="follow";cam.follow=a.id;closeSheet();updateCaption();};document.getElementById("cWhy").onclick=()=>openWhy(a);
-  const ad=document.getElementById("cAdopt");if(ad)ad.onclick=()=>adoptFlow(a);const db=document.getElementById("cDash");if(db)db.onclick=openDashboard;}
+  const ad=document.getElementById("cAdopt");if(ad)ad.onclick=()=>adoptFlow(a);const db=document.getElementById("cDash");if(db)db.onclick=openDashboard;const lb=document.getElementById("cLead");if(lb)lb.onclick=()=>leadStart(a);}
 function openWordCard(w){const ms=wordMembers(w);const rows=ms.map((m,i)=>{const c=w.text[i];if(!m)return`<li>${esc(c)}: missing</li>`;return`<li>${esc(c)}: ${esc(m.name)}, ${dist(m,slotPos(w,i))<90?"at home":"away"}</li>`;}).join("");
   const bs=S.structs.filter(s=>s.word===w.id).map(s=>s.type==="fire"?(s.lit?"a fire (burning)":"a fire pit (cold)"):s.type==="hut"?(s.built?"a shelter":"a shelter being built"):s.type==="bridge"?(s.built?"the bridge":`the bridge, ${Math.round(((s.have.wood||0)/10*.5+s.work*.5)*100)}% done`):"");
   const trees=S.trees.filter(t=>t.owner===w.id).length;
@@ -42639,7 +42648,7 @@ cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;point
   if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>6){drag.moved=true;takeControl();}if(drag.moved){cam.x=drag.cx-dx/cam.z;cam.y=drag.cy-dy/cam.z;}});
 cv.addEventListener("pointerup",e=>{pointers.delete(e.pointerId);if(drag&&!drag.moved){const[wx,wy]=s2w(e.clientX,e.clientY);let best=null,bd=Math.max(SPELL.on?60:44,(SPELL.on?100:72)/Math.max(.6,cam.z));
   for(const a of S.agents){if(SPELL.on&&!canSay(a))continue;const d=Math.hypot(a.x+10*K-wx,a.y-40*K-wy);if(d<bd){bd=d;best=a;}}
-  if(best){if(SPELL.on)spellTap(best);else{sel=best.id;openCard(best);updateCaption();}}else{const w=S.words.find(w=>w.state!=="forming"&&wx>w.x-w.width/2-30&&wx<w.x+w.width/2+30&&wy>w.y-95*K&&wy<w.y+30);if(w){selWord=w.id;selWordUntil=tAnim+12;openWordCard(w);}else sel=null;}}if(pointers.size===0)drag=null;});
+  if(LEAD.on&&!SPELL.on&&(!best||best.id!==LEAD.id))leadTo(wx,wy);else if(best){if(SPELL.on)spellTap(best);else{sel=best.id;openCard(best);updateCaption();}}else{const w=S.words.find(w=>w.state!=="forming"&&wx>w.x-w.width/2-30&&wx<w.x+w.width/2+30&&wy>w.y-95*K&&wy<w.y+30);if(w){selWord=w.id;selWordUntil=tAnim+12;openWordCard(w);}else sel=null;}}if(pointers.size===0)drag=null;});
 let atlasPull=0;cv.addEventListener("wheel",e=>{e.preventDefault();if(e.deltaY>0&&cam.z<=minZ()*1.02){atlasPull+=e.deltaY;if(atlasPull>350){atlasPull=0;openAtlas();}return;}atlasPull=0;takeControl();const[wx,wy]=s2w(e.clientX,e.clientY);const nz=clamp(cam.z*Math.exp(-e.deltaY*.0015),minZ(),2.4);cam.x=wx-(e.clientX-W/2)/nz;cam.y=wy-(e.clientY-H/2)/nz;cam.z=nz;},{passive:false});
 cv.addEventListener("keydown",e=>{const st=60/cam.z;if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","-","="].includes(e.key)){takeControl();e.preventDefault();}
   if(e.key==="ArrowLeft")cam.x-=st;if(e.key==="ArrowRight")cam.x+=st;if(e.key==="ArrowUp")cam.y-=st;if(e.key==="ArrowDown")cam.y+=st;if(e.key==="+"||e.key==="=")cam.z=clamp(cam.z*1.15,minZ(),2.4);if(e.key==="-")cam.z=clamp(cam.z/1.15,minZ(),2.4);});
@@ -42990,9 +42999,10 @@ CMD.spell=(a0,args,out)=>{const v=vPlay(S.visitor);S.spoken=S.spoken||[];S.vocab
   const p=pickFor(text,ids,anchor,v);
   if(p.missing){const late=LATE[p.missing]&&!S.lateBorn?.[p.missing];return R({ok:false,missing:p.missing,late:!!late,msg:late?`There is no ${p.missing} in the world yet. It hasn't been invented.`:`There's no ${p.missing} free nearby.`});}
   if(p.fail)return R({ok:false,refused:p.refused,msg:`${p.refused.slice(-2).join(", and ")}. Try other letters, or try again soon.`});
+  let wk=null;if(args.wake&&WAKE[text]){const W0=WAKE[text],why=W0.no&&W0.no();if(why)return R({ok:false,msg:why});if(v.sparks<W0.cost)return R({ok:false,msg:`Waking ${text} costs ${W0.cost} ✦. Spell more words to earn them.`});v.sparks-=W0.cost;wk=text;}
   const first=!S.vocab[text]&&!S.discovered.includes(text);if(first&&Object.keys(S.vocab).length<9000)S.vocab[text]=Date.now();
   const rw=spellReward(v,text,first);const names=p.ms.map(m=>m.name);
-  const sp=startSpoken(text,p.ms,{by:"v",vk,first,n:rw.n,sd:p.sd});
+  const sp=startSpoken(text,p.ms,{by:"v",vk,first,n:rw.n,sd:p.sd});if(wk)sp.wake=wk;
   p.ms.forEach(m=>{remember(m,`A visitor asked me to say ${text} with ${listNames(names.filter(n=>n!==m.name))}.`);(v.trustIn=v.trustIn||{})[m.id]=clamp(((v.trustIn[m.id])||0)+.03,-1,1);});
   if(first)chron(`${listNames(names)} said ${text}, because a visitor spelled it. No one in the world had ever said ${text} before.`,"word");
   addStory({kind:"spoken",sp:sp.id,ids:sp.ids,text:`${listNames(names)} are coming together to say ${text}.`,sub:first?"No one in the world has ever said this word before.":"A visitor spelled it, and they agreed.",score:first?90:74,dur:14,main:sp.ids[0]});
@@ -43013,7 +43023,7 @@ function spokenTick(){S.spoken=S.spoken||[];for(const a of S.agents)if(a.act&&a.
   if(S.simT>=(S.glowAt||0)){S.glowAt=S.simT+30;S.glow={k:needNow()};}
   for(const sp of[...S.spoken]){const ms=sp.ids.map(agentById);
     if(sp.state==="gather"){const all=ms.every(m=>!m||!m.act||m.act.sp!==sp.id||m.act.arrived||Math.hypot(m.x-m.act.tx,m.y-m.act.ty)<40);
-      if(all||S.simT-sp.t0>40){sp.state="say";sp.sayAt=S.simT;ms.forEach(m=>{if(!m)return;m.joy=Math.min(1,m.joy+.15);m.social=Math.min(1,m.social+.25);emote(m,"joy",5);});
+      if(all||S.simT-sp.t0>40){sp.state="say";sp.sayAt=S.simT;if(sp.wake)wakeDo(sp);ms.forEach(m=>{if(!m)return;m.joy=Math.min(1,m.joy+.15);m.social=Math.min(1,m.social+.25);emote(m,"joy",5);});
         if(sp.by!=="self"||rnd()<.5)Music.wordChord(sp.text);endStories(s=>s.sp===sp.id);}}
     else if(S.simT-sp.sayAt>6||S.simT-sp.t0>80){ms.forEach(m=>{if(m&&m.act&&m.act.sp===sp.id)done(m);});S.spoken.splice(S.spoken.indexOf(sp),1);}}
   if(S.simT>=(S.selfSayAt||0)){S.selfSayAt=S.simT+55+rnd()*45;if(!WORLD.mirror)selfSay();}}
@@ -43057,8 +43067,8 @@ function renderIdeas(){if(!SPELL.on)return;SPELL.lastIdeas=tAnim;const v=vPlay()
   else h+=`<div class="st-row"><span class="st-k">Words about ${esc(gk.n)} earn ×3 right now, like ${gk.list.slice(0,3).join(", ")}.</span></div>`;
   if(id.hist.length)h+=`<div class="st-row"><span class="st-k">Words with a real story, +10:</span>${id.hist.map(w=>`<button type="button" class="st-chip hist" data-w="${w}">📜 ${w}</button>`).join("")}</div>`;
   if(id.can.length)h+=`<div class="st-row"><span class="st-k">You could spell:</span>${id.can.filter(w=>!id.hist.includes(w)).map(chip).join("")}</div>`;
-  if(id.away){const free=v.gifts>0,cost=GIFT_COST,ok=free||v.sparks>=cost;h+=`<div class="st-row"><span class="st-k">You're one ${id.away.c} away from <b>${id.away.w}</b>.</span><button type="button" class="st-chip get" data-get="${id.away.c}" data-for="${id.away.w}" ${ok?"":"disabled"}>Bring ${art(id.away.c)} ${id.away.c} ${free?"(free)":`(${cost} ✦)`}</button></div>`;}
-  el.innerHTML=h;el.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{setSpell(b.dataset.w,[]);});
+  if(id.away){const free=v.gifts>0,cost=GIFT_COST,ok=free||v.sparks>=cost;h+=`<div class="st-row"><span class="st-k">You're one ${id.away.c} away from <b>${id.away.w}</b>.</span><button type="button" class="st-chip get" data-get="${id.away.c}" data-for="${id.away.w}" ${ok?"":"disabled"}>Bring ${art(id.away.c)} ${id.away.c} ${free?"(free)":`(${cost} ✦)`}</button><button type="button" class="st-chip" data-ask="${id.away.c}" data-for="${id.away.w}">Ask a friend</button></div>`;}
+  el.innerHTML=h;el.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>askFriend(b.dataset.ask,b.dataset.for));el.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{setSpell(b.dataset.w,[]);});
   el.querySelectorAll("[data-get]").forEach(b=>b.onclick=()=>bringLetter(b.dataset.get,b.dataset.for));}
 function bringLetter(c,forWord){const out=document.createElement("div");const msg=$p("stMsg");msg.textContent=`Calling ${art(c)} ${c}…`;
   WX("gift",null,{c,x:cam.x,y:cam.y+80},out,()=>{const t=out.textContent;if(t){msg.textContent=t;return;}msg.textContent=`${art(c)==="an"?"An":"A"} ${c} is on the way.${forWord?` Spell ${forWord} when it arrives.`:""}`;if(forWord)setSpell(forWord,[]);
@@ -43067,7 +43077,7 @@ const PLAIN=new Set("THE AND FOR THAT YOU THIS WITH WAS ARE HAVE NOT BUT FROM TH
 const EASY=new Set("SUN SEA ANT EAT TEA RED HAT TOP NET TEN HOT ONE RUN SIT EGG ICE ART OAK OWL FUN JOY HUG MAP CUP BOX FOX BEE EYE EAR ARM LEG KEY DAY SKY CAT DOG PEN PIN TIN RAT MAT NUT HEN DEN POT DOT WET YES SON BAT BED BUS CAR COW FAN FIG HAM JAM LID MUD NAP OLD PET RUG SAD TOY VAN WEB ZOO AIR ASH BIG BOW DEW DIG EGO ELF END FIN FLY GEM GUM HAY HIP HOP INK JET KIT LAP LOG MIX NOD OAR OWN PAN PEA PIG RAY RIB ROD ROW SAW SEW SHY SKI SOW SPY TAP TOE TUB URN WAX WIN YAK YAM".split(" "));
 function setSpell(text,ids){text=String(text||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,12);SPELL.ids=[...text].map((ch,i)=>{const a=ids[i]!=null?agentById(ids[i]):null;return a&&a.ch===ch?a.id:null;});
   const inp=$p("stIn");if(inp.value!==text)inp.value=text;renderTiles();}
-function renderTiles(){const text=$p("stIn").value,ok=text.length>=3&&LEXSET.has(text),el=$p("stTiles");
+function renderTiles(){wakeRow();const text=$p("stIn").value,ok=text.length>=3&&LEXSET.has(text),el=$p("stTiles");
   el.innerHTML=text?[...text].map((ch,i)=>`<span class="st-tile${SPELL.ids[i]!=null?" picked":""}">${ch}</span>`).join(""):`<span class="st-ph">Tap letters in the world, or type a word</span>`;
   el.classList.toggle("real",ok);$p("stSay").disabled=!ok;$p("stSay").textContent=ok?`Say ${text}`:"Say it";
   const m=$p("stMsg");if(text.length>=3&&!ok){m.textContent=`${text} isn't a word yet. Keep going.`;SPELL.soft=true;}else if(SPELL.soft){m.textContent="";SPELL.soft=false;}}
@@ -43080,8 +43090,8 @@ function frameOn(list){if(!list.length)return;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
 function frameNear(){const av=S.agents.filter(a=>canSay(a)&&!a.young).sort((p,q)=>Math.hypot(p.x-cam.x,p.y-cam.y)-Math.hypot(q.x-cam.x,q.y-cam.y)).slice(0,9);frameOn(av);}
 function openSpell(focus,noFrame){if(ATL.on||tour)return;const was=SPELL.on;SPELL.on=true;document.body.classList.add("spelling");$p("spellTray").hidden=false;takeControl();if(!was&&!noFrame)frameNear();renderTiles();renderIdeas();if(focus)$p("stIn").focus();}
 function closeSpell(){SPELL.on=false;document.body.classList.remove("spelling");$p("spellTray").hidden=true;}
-function sayIt(){const text=$p("stIn").value;if(!(text.length>=3&&LEXSET.has(text)))return;const out=document.createElement("div"),msg=$p("stMsg");$p("stSay").disabled=true;
-  WX("spell",null,{text,ids:SPELL.ids,x:cam.x,y:cam.y},out,()=>{const el=out.querySelector("[data-r]");let r=null;try{r=el&&JSON.parse(el.dataset.r);}catch(e){}
+function sayIt(wake){const text=$p("stIn").value;if(!(text.length>=3&&LEXSET.has(text)))return;const out=document.createElement("div"),msg=$p("stMsg");$p("stSay").disabled=true;
+  WX("spell",null,{text,ids:SPELL.ids,x:cam.x,y:cam.y,wake:wake===true?1:0},out,()=>{const el=out.querySelector("[data-r]");let r=null;try{r=el&&JSON.parse(el.dataset.r);}catch(e){}
     if(!r){msg.textContent=out.textContent||"The world is busy. Try again.";renderTiles();return;}
     if(r.ok){SPELL.mine.set(r.id,{n:r.n,parts:r.parts,first:r.first,combo:r.combo,at:Date.now(),seen:false,text});if(clipCan()&&(r.first||HWORD.has(text)||CLIP.film)&&!tutOn())clipStart(r.id,text,{n:r.n,first:r.first});CLIP.film=false;$p("stFilm").setAttribute("aria-pressed","false");msg.textContent=`${r.msg} Watch them say it.`;setSpell("",[]);
       if(TUT.step===1){TUT.step=2;tutSave();coach("They're coming together. Every word earns sparks ✦.");}else if(TUT.step===2){TUT.step=3;tutSave();}else if(TUT.step===4&&(!TUT.want||text===TUT.want)){TUT.step=5;tutSave();}}
@@ -43268,20 +43278,23 @@ function pgLink(){return PG.me&&PG.me.live?`https://letterheads.live/play/?p=${P
 function withPage(link){const p=PG.me&&PG.me.live?PG.me.p:null;return p?link+(link.includes("?")?"&":"?")+"p="+p:link;}
 async function pgClaim(){if(!PG.me||!PG.me.live)return;const r=await pgCall("/page/claim",PG.me.p,{key:PG.me.key});if(!r)return;PG.views=r.views|0;
   if(r.n>0){const v=vPlay();v.sparks+=r.n;v.earned+=r.n;v.sparkLog&&v.sparkLog.unshift({t:Date.now(),n:r.n,text:`${r.n/5} new ${r.n===5?"person":"people"} opened your links`});
-    note(`${r.n/5} new ${r.n===5?"person":"people"} opened your links: +${r.n} ✦`);dockTick();}}
+    note(`${r.n/5} new ${r.n===5?"person":"people"} opened your links: +${r.n} ✦`);dockTick();}
+  if(Array.isArray(r.gifts)&&r.gifts.length){const v=vPlay(),gs=r.gifts.filter(c=>/^[A-Z]$/.test(c));v.gifts=(v.gifts||0)+gs.length;v.sparks+=10*gs.length;v.earned+=10*gs.length;
+    setTimeout(()=>note(`${gs.length===1?"A friend":gs.length+" friends"} sent you ${listNames(gs.map(c=>art(c)+" "+c))}: +${10*gs.length} ✦, and ${gs.length===1?"a free letter":"free letters"} to bring.`),6500);dockTick();}}
 let pgTickAt=0;function pgTick(){const now=performance.now();if(now<pgTickAt)return;pgTickAt=now+20000;
   const q=new URLSearchParams(location.search).get("p");
   if(q&&/^[a-z0-9]{8,16}$/.test(q)&&PG.shown!==q&&document.getElementById("intro").style.display==="none"&&!sheet.classList.contains("open")&&!tutOn()){PG.shown=q;if(!PG.me||PG.me.p!==q)pgVisit(q);}
   if(PG.me&&PG.me.live&&!document.hidden){if(!PG.claimed){PG.claimed=1;pgClaim();}if(Date.now()-PG.at>10*60000)pgPublish().then(()=>pgClaim());}}
 async function pgVisit(p){let seen={};try{seen=JSON.parse(localStorage.getItem("letterheads_seen_pages_v1")||"{}");}catch(e){}
   if(!seen[p]){seen[p]=1;try{localStorage.setItem("letterheads_seen_pages_v1",JSON.stringify(seen));}catch(e){}pgCall("/page/visit",p,{vt:PG.vt});}
-  const d=await pgCall("/page",p);if(d)pgShow(d);}
-function pgShow(d){const who=d.letters.length?listNames(d.letters.slice(0,3).map(l=>l.name)):d.firsts.length?`The first to say ${d.firsts[0]}`:"A Letterheads player";
+  const d=await pgCall("/page",p);if(d)pgShow(d,p);}
+function pgShow(d,pid){const qs=new URLSearchParams(location.search),give=(qs.get("give")||"").toUpperCase(),gw=(qs.get("w")||"").toUpperCase();const who=d.letters.length?listNames(d.letters.slice(0,3).map(l=>l.name)):d.firsts.length?`The first to say ${d.firsts[0]}`:"A Letterheads player";
   openSheet(`<h2 id="sheetTitle">${esc(who)}${d.letters.length>3?" and friends":""}</h2><p class="muted">A player's page in Letterheads${d.era?` · ${esc(d.era)}`:""}</p>
    ${d.letters.length?`<div class="pg-ls">${d.letters.map(l=>`<span><b>${l.ch}</b>${esc(l.name)}</span>`).join("")}</div>`:""}
    <p><b>Level ${d.level}</b> · ${d.words.toLocaleString()} word${d.words===1?"":"s"} spelled · ${d.stories} real stories found · ${d.alpha} of 26 letter stories</p>
    ${d.firsts.length?`<h3>First in the world</h3><p>${d.firsts.map(w=>`<b class="goldw">${esc(w)}</b>`).join(" ")}</p>`:""}
    ${d.recent.length?`<h3>Lately</h3><p class="muted">${esc(d.recent.join(" · "))}</p>`:""}
+   ${/^[A-Z]$/.test(give)&&pid?`<div class="pg-ask"><p><b>They're one ${give} away${LEXSET.has(gw)?` from ${gw}`:""}.</b> Send them ${art(give)} ${give}, and you both get 10 ✦.</p><div class="actions"><button class="main" type="button" id="pgGive" data-pg="give" data-p="${pid}" data-c="${give}">Send ${art(give)} ${give}</button></div></div>`:""}
    <div class="actions"><button class="main" type="button" data-pg="play">Spell your own words</button>${d.valley?`<button type="button" data-pg="valley" data-v="${esc(d.valley)}">Visit their valley</button>`:""}</div>
    <p class="muted">Letterheads is a living world of letters going through real history. Letters only say a word if they agree to.</p>`,"page");}
 function pgDashHTML(){const l=pgLink();return`<h3>Your page</h3>${l?`<p class="muted">${PG.views} ${PG.views===1?"person has":"people have"} opened your links. Each new person earns you 5 ✦, up to 50 a day.</p><div class="actions"><button class="main" type="button" data-pg="share">Share my page</button></div><p class="muted pg-url">${esc(l)}</p>`
@@ -43293,7 +43306,48 @@ document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.c
   if(k==="play"){closeSheet();if(!SPELL.on)openSpell(false);}
   else if(k==="valley")location.href="/play/?v="+encodeURIComponent(b.dataset.v)+"&p="+encodeURIComponent(PG.shown||"");
   else if(k==="make"){b.disabled=true;b.textContent="Making your page…";const r=await pgPublish();if(r&&r.ok){renderDashboard(false);pgShare();}else{b.disabled=false;b.textContent="Couldn't reach the server. Try again";}}
-  else if(k==="share"){await pgPublish();pgShare();}});
+  else if(k==="share"){await pgPublish();pgShare();}
+  else if(k==="give"){b.disabled=true;sendGift(b.dataset.p,b.dataset.c);}});
+
+
+// ================= grow: waking words, asking friends, leading your letters =================
+const WAKE={RAIN:{cost:15,d:"rain falls on the valley",no:()=>S.wx.rain?"It's already raining.":null,go:sp=>{S.wx.rain=true;S.wx.until=S.simT+120+rnd()*60;return"and the clouds answered. Rain began to fall.";}},
+  SUN:{cost:10,d:"the rain stops and the sun comes out",no:()=>S.wx.rain?null:"The sun is already out.",go:sp=>{S.wx.rain=false;S.wx.next=S.simT+420+rnd()*300;return"and the clouds broke. The sun came out.";}},
+  FEAST:{cost:15,d:"every letter nearby eats its fill",go:sp=>{const n=wakeNear(sp,a=>{a.hunger=0;a.joy=Math.min(1,(a.joy||0)+.2);});return`and ${n} letter${n===1?"":"s"} nearby ate their fill.`;}},
+  DRINK:{cost:10,d:"every letter nearby drinks",go:sp=>{const n=wakeNear(sp,a=>{a.thirst=0;});return`and ${n} thirsty letter${n===1?"":"s"} drank.`;}},
+  REST:{cost:10,d:"every letter nearby is rested",go:sp=>{const n=wakeNear(sp,a=>{a.energy=1;});return`and ${n} tired letter${n===1?"":"s"} felt rested.`;}},
+  HEAL:{cost:15,d:"hurt letters nearby are healed",go:sp=>{const n=wakeNear(sp,a=>{a.hurt=0;a.energy=Math.max(a.energy,.6);});return`and the letters nearby felt whole again.`;}},
+  FRUIT:{cost:15,d:"trees nearby fill with fruit",go:sp=>{let n=0;for(const t of S.trees)if(Math.hypot(t.x-sp.x,t.y-sp.y)<700&&t.max){t.fruit=t.max;n++;}return n?`and ${n} tree${n===1?"":"s"} nearby filled with fruit.`:"but there were no trees near enough to listen.";}}};
+WAKE.SEED=WAKE.FRUIT;
+function wakeNear(sp,f){let n=0;for(const a of S.agents)if(Math.hypot(a.x-sp.x,a.y-sp.y)<600){f(a);n++;}return n;}
+function wakeDo(sp){const w=WAKE[sp.wake];if(!w)return;let line="";try{line=w.go(sp);}catch(e){return;}const ms=sp.ids.map(agentById).filter(Boolean);
+  const t=`${listNames(ms.map(a=>a.name))} said ${sp.text}, ${line}`;chron(t,"word");addStory({kind:"wake",sp:sp.id,ids:sp.ids,text:t,sub:"A visitor woke the word.",score:86,dur:14,main:sp.ids[0]});try{Music.discovery();}catch(e){}}
+function wakeRow(){const el=$p("stWake");if(!el)return;const t=$p("stIn").value,w=WAKE[t];if(!w||!LEXSET.has(t)){el.innerHTML="";return;}const v=vPlay(),ok=v.sparks>=w.cost;
+  el.innerHTML=`<span>✨ <b>${t}</b> is a waking word: ${esc(w.d)}.</span><button type="button" class="st-chip get" id="stWakeGo" ${ok?"":"disabled"}>Say and wake it · ${w.cost} ✦</button>`;$p("stWakeGo").onclick=()=>sayIt(true);}
+async function askFriend(c,w){if(!pgLink())await pgPublish();const l=pgLink();if(!l){note("Couldn't reach the server. Try again soon.");return;}
+  const url=`${l}&give=${c}&w=${w}`,text=`I'm one ${c} away from ${w} in Letterheads. Can you send me ${art(c)} ${c}? We both get 10 ✦.`;
+  try{if(navigator.share){await navigator.share({text,url});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  try{await navigator.clipboard.writeText(text+" "+url);note("Your ask is copied. Send it to a friend.");}catch(e){note(url);}}
+async function sendGift(p,c){const r=await pgCall("/page/give",p,{vt:PG.vt,ch:c});const b=$p("pgGive");
+  if(r&&r.ok){let got={};try{got=JSON.parse(localStorage.getItem("letterheads_gave_v1")||"{}");}catch(e){}const k=p+":"+new Date().toISOString().slice(0,10);
+    if(!got[k]){got[k]=1;try{localStorage.setItem("letterheads_gave_v1",JSON.stringify(got));}catch(e){}const v=vPlay();v.sparks+=10;v.earned+=10;dockTick();}
+    if(b){b.disabled=true;b.textContent=`Sent! You both get 10 ✦`;}}
+  else if(b){b.disabled=true;b.textContent=r&&r.why==="already"?"You've already sent one today":r&&r.why==="full"?"They have plenty of gifts waiting":"Couldn't send. Try again soon";}}
+// lead a companion: tap where to go
+const LEAD={on:false,id:null,keyAt:0};
+function leadStart(a){if(!isAdopted(a))return;closeSheet();LEAD.on=true;LEAD.id=a.id;cam.mode="follow";cam.follow=a.id;
+  const el=$p("leadBar");el.innerHTML=`<span>Leading <b>${esc(a.name)}</b>. Tap where to go${matchMedia("(pointer:coarse)").matches?"":", or use the arrow keys"}.</span><button type="button" class="st-chip" id="leadStop">Stop</button>`;el.hidden=false;$p("leadStop").onclick=leadStop;document.body.classList.add("leading");}
+function leadStop(){LEAD.on=false;$p("leadBar").hidden=true;document.body.classList.remove("leading");}
+function leadTo(x,y){const a=agentById(LEAD.id);if(!a){leadStop();return;}const out=document.createElement("div");LEAD.mark={x,y,t:performance.now()};
+  WX("lead",a,{x,y},out,()=>{const m=out.textContent;if(m)note(m);});}
+CMD.lead=(a,args,out)=>{const say=t=>{if(out)out.textContent=t;};if(!a||!isAdopted(a))return say("Only your companions follow you.");const x=+args.x,y=+args.y;if(!Number.isFinite(x)||!Number.isFinite(y))return;
+  if(urgentNeed(a))return say(`${a.name} is too ${a.hunger>.75?"hungry":a.thirst>.75?"thirsty":"tired"} to follow right now.`);
+  if(a.act&&(a.act.type==="say"||a.act.type==="await"))return say(`${a.name} is busy saying a word.`);if(a.crossing!=null)return say(`${a.name} is crossing the river.`);
+  const tx=clamp(x,0,WORLD_W),ty=clamp(y,0,WORLD_H),wp=route(a,tx,ty);if(wp===null)return say(`${a.name} can't find a way there.`);
+  if(a.act)done(a);a.act={type:"led",tx,ty,t:0,wp,arrived:false,until:S.simT+60};emote(a,"joy",3);say("");};
+document.addEventListener("keydown",e=>{if(!LEAD.on)return;if(e.key==="Escape"){leadStop();return;}if(SPELL.on)return;const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
+  e.preventDefault();e.stopImmediatePropagation();const now=performance.now();if(now-LEAD.keyAt<1600)return;LEAD.keyAt=now;const a=agentById(LEAD.id);if(a)leadTo(a.x+d[0]*260,a.y+d[1]*260);},true);
+function drawLead(){if(!LEAD.on||!LEAD.mark)return;const k=(performance.now()-LEAD.mark.t)/1000;if(k>2.5)return;ctx.save();ctx.strokeStyle=`rgba(232,150,47,${1-k/2.5})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(LEAD.mark.x,LEAD.mark.y,14+k*16,0,Math.PI*2);ctx.stroke();ctx.restore();}
 
 function save(){if(WORLD.remote)return;if(WORLD.on&&!WORLD.own){WORLD.savePersonal();return;}try{localStorage.setItem(SAVE_KEY,JSON.stringify({S,nextId}));}catch(e){}}
 function load(){try{const raw=WORLD.on&&!WORLD.own?WORLD.snapText:WORLD.on&&WORLD.own?ownValleyText():localStorage.getItem(SAVE_KEY);if(!raw)return false;const d=JSON.parse(raw);if(!d||!d.S||d.S.v!==3)return false;S=d.S;nextId=d.nextId||5000;if(WORLD.on&&!WORLD.own){WORLD.personal();if(d.stories)stories=d.stories;}S.history=S.history||[];S.wordLog=S.wordLog||{};S.visitor.sparks=S.visitor.sparks??5;S.visitor.sparkLog=S.visitor.sparkLog||[];S.moments=S.moments||[];S.beasts=S.beasts||[];S.visitor.rep=S.visitor.rep??4;S.visitor.repN=S.visitor.repN||0;S.visitor.repLog=S.visitor.repLog||[];if(!S.chapters){S.chapters=[];startChapter("wanderers");}
@@ -43319,7 +43373,7 @@ if(/[?&]broadcast\b/.test(location.search)){
   setTimeout(enter,1500);setInterval(enter,60000);
   setInterval(()=>{const e=document.getElementById("eraLine");const parts=e?e.textContent.split(" · "):[];document.getElementById("bEra").textContent=parts.slice(1,3).join(" · ");},1000);
 }
-window.__lango={get world(){return WORLD},get play(){return{SPELL,TUT,ideas,lex:LEX.length,levelOf,vPlay,HB,HQ,HFACTS,eraMoment,nextEra,ribbonHTML,histAfter,CLIP,clipStart,clipCan,PG,pgPublish,pgClaim}},get living(){return LIVING},wx:WX,get tour(){return tour},startTour:()=>startTour(),get sel(){return sel},w2s:(x,y)=>w2s(x,y),agentById:id=>agentById(id),get S(){return S},get director(){return director},cam,Music,side,get HOME(){return HOME},get CROSS(){return CROSS},get MAP(){return MAP},atlas:{open:()=>{atlasIntroCancel();openAtlas();},dive:()=>{atlasIntroCancel();diveIn();},journey:()=>startJourney(),setYear:y=>{atlasIntroCancel();ATL.year=y;atlasCard();},get state(){return ATL},valleyAt:y=>valleyAt(y),seaLevel:y=>seaLevel(y),iceFrac:y=>iceFrac(y)},relocate:()=>relocate(),get place(){return TERRA_READY?placeNow():null},get placeKey(){return MAP.key}};
+window.__lango={get world(){return WORLD},get play(){return{SPELL,TUT,ideas,lex:LEX.length,levelOf,vPlay,HB,HQ,HFACTS,eraMoment,nextEra,ribbonHTML,histAfter,CLIP,clipStart,clipCan,PG,pgPublish,pgClaim,WAKE,LEAD,leadStart,leadTo}},get living(){return LIVING},wx:WX,get tour(){return tour},startTour:()=>startTour(),get sel(){return sel},w2s:(x,y)=>w2s(x,y),agentById:id=>agentById(id),get S(){return S},get director(){return director},cam,Music,side,get HOME(){return HOME},get CROSS(){return CROSS},get MAP(){return MAP},atlas:{open:()=>{atlasIntroCancel();openAtlas();},dive:()=>{atlasIntroCancel();diveIn();},journey:()=>startJourney(),setYear:y=>{atlasIntroCancel();ATL.year=y;atlasCard();},get state(){return ATL},valleyAt:y=>valleyAt(y),seaLevel:y=>seaLevel(y),iceFrac:y=>iceFrac(y)},relocate:()=>relocate(),get place(){return TERRA_READY?placeNow():null},get placeKey(){return MAP.key}};
 if(!params.get("follow")&&!S.settings.reduce){atlasIntro();if(S.settings.introSeen)atlasIntroGo();}
 });
 })();

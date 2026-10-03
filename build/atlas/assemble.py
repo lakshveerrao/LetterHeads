@@ -151,6 +151,7 @@ exec(open(O+'quiet_patch.py').read())
 exec(open(O+'play_patch.py').read())
 exec(open(O+'history_patch.py').read())
 exec(open(O+'share_patch.py').read())
+exec(open(O+'grow_patch.py').read())
 exec(open(O+'broadcast_patch.py').read())
 open(O+'letterheads.html','w').write(s)
 open(O+'../../site/play/index.html','w').write(s)  # the live site serves the game at /play/
