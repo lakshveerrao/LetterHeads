@@ -86,6 +86,8 @@ CMD.spell=(a0,args,out)=>{const v=vPlay(S.visitor);S.spoken=S.spoken||[];S.vocab
   addStory({kind:"spoken",sp:sp.id,ids:sp.ids,text:`${listNames(names)} are coming together to say ${text}.`,sub:first?"No one in the world has ever said this word before.":"A visitor spelled it, and they agreed.",score:first?90:74,dur:14,main:sp.ids[0]});
   if(!WORLD.remote)save();
   R({ok:true,id:sp.id,n:rw.n,parts:rw.parts,first,combo:rw.combo,glow:rw.glow,names,msg:`${listNames(names)} agreed.`});};
+CMD.await=(a0,args,out)=>{const ids=Array.isArray(args.ids)?args.ids.slice(0,3):[];for(const id of ids){const a=agentById(+id);if(!a||!canSay(a)||urgentNeed(a)||a.crossing!=null||(a.act&&a.act.type==="meet"))continue;
+  done(a);a.act={type:"await",tx:a.x,ty:a.y,t:0,wp:[],arrived:true,until:S.simT+30};emote(a,"wonder",4);}};
 // letters use the words the world has learned, on their own
 function selfSay(){const V=Object.keys(S.vocab||{});if(V.length<2)return;const free=S.agents.filter(a=>!a.young&&canSay(a)&&!urgentNeed(a)&&!a.sleeping&&!(a.act&&a.act.type==="meet"));if(free.length<3)return;
   const a=free[Math.floor(rnd()*free.length)];const near=free.filter(b=>dist(a,b)<560&&side(b.x,b.y)===side(a.x,a.y));
@@ -95,7 +97,7 @@ function selfSay(){const V=Object.keys(S.vocab||{});if(V.length<2)return;const f
     if(!S.selfSaid[w]){S.selfSaid[w]=1;chron(`${listNames(names)} said ${w} on their own. They learned it from a word a visitor taught the world.`,"word");}
     ms.forEach(m=>remember(m,`We said ${w} together, ${listNames(names.filter(n=>n!==m.name))} and I.`));
     addStory({kind:"spoken",sp:sp.id,ids:sp.ids,text:`${listNames(names)} are getting together to say ${w}.`,sub:"Nobody asked them. It's a word they learned.",score:66,dur:12,main:sp.ids[0]});return;}}
-function spokenTick(){S.spoken=S.spoken||[];
+function spokenTick(){S.spoken=S.spoken||[];for(const a of S.agents)if(a.act&&a.act.type==="await"&&(S.simT>a.act.until||urgentNeed(a)))done(a);
   if(S.simT>=(S.glowAt||0)){S.glowAt=S.simT+30;S.glow={k:needNow()};}
   for(const sp of[...S.spoken]){const ms=sp.ids.map(agentById);
     if(sp.state==="gather"){const all=ms.every(m=>!m||!m.act||m.act.sp!==sp.id||m.act.arrived||Math.hypot(m.x-m.act.tx,m.y-m.act.ty)<40);
@@ -123,7 +125,7 @@ function pendingSparks(){let n=0;for(const m of SPELL.mine.values())if(!m.seen)n
 function dockTick(){const v=vPlay(),shown=Math.max(0,v.sparks-pendingSparks()),earned=Math.max(0,v.earned-pendingSparks()),L=levelOf(earned);
   $p("pdN").textContent=shown;$p("pdLv").textContent=`Level ${L}`;$p("pdBar").style.width=Math.round(clamp((earned-LV(L))/(LV(L+1)-LV(L)),0,1)*100)+"%";
   if(SPELL.shown&&L>SPELL.shown.L)levelUp(L);SPELL.shown={L};
-  const cb=$p("pdCombo"),left=60000-(Date.now()-v.lastWordAt);if(v.combo>1&&left>0){cb.hidden=false;cb.querySelector("b").textContent=`Combo ×${v.combo}`;cb.querySelector("i i").style.width=Math.round(left/600)+"%";}else cb.hidden=true;}
+  const cb=$p("pdCombo"),left=60000-(Date.now()-v.lastWordAt);if(v.combo>1&&left>0){cb.hidden=false;cb.querySelector("b").textContent=`Combo ×${v.combo}`;cb.querySelector("i i").style.width=Math.round(left/600)+"%";}else cb.hidden=true;const sc=$p("stCombo");sc.hidden=cb.hidden;if(!cb.hidden)sc.textContent=`×${v.combo} · ${Math.ceil(left/1000)}s`;}
 function levelUp(L){const o=LEVEL_OPENS[L];const el=$p("lvToast");el.innerHTML=`<b>Level ${L}</b>${o?`<span>Opens ${esc(o)}</span>`:`<span>Keep spelling.</span>`}`;el.hidden=false;el.classList.remove("go");void el.offsetWidth;el.classList.add("go");
   setTimeout(()=>{el.hidden=true;},3600);if(Music.on&&Music.discovery)try{Music.discovery();}catch(e){}}
 function availHere(){return S.agents.filter(a=>inView(a.x,a.y,60)&&canSay(a)&&!a.young);}
@@ -132,7 +134,7 @@ function missingFor(w,c){const need=new Array(26).fill(0);let miss=null,n=0;for(
 function ideas(){const v=vPlay(),av=availHere(),c=countsOf(av),out={can:[],away:null,glow:[]};const gs=glowSet();
   for(const w of NEEDS[glowKey()].list){const[n]=missingFor(w,c);if(n===0)out.glow.push(w);if(out.glow.length>=3)break;}
   for(let i=0;i<LEX.length&&i<20000;i++){const w=LEX[i];if(w.length>7)continue;const[n,miss]=missingFor(w,c);
-    if(n===0&&!v.words[w]&&out.can.length<4&&!gs.has(w))out.can.push(w);
+    if(PLAIN.has(w))continue;if(n===0&&!v.words[w]&&out.can.length<4&&!gs.has(w))out.can.push(w);
     else if(n===1&&!out.away&&w.length>=4&&w.length<=6&&i<9000&&!v.words[w]&&!(LATE[miss]&&!S.lateBorn?.[miss]))out.away={w,c:miss};
     if(out.can.length>=4&&out.away)break;}
   return out;}
@@ -147,6 +149,7 @@ function renderIdeas(){if(!SPELL.on)return;SPELL.lastIdeas=tAnim;const v=vPlay()
 function bringLetter(c,forWord){const out=document.createElement("div");const msg=$p("stMsg");msg.textContent=`Calling ${art(c)} ${c}…`;
   WX("gift",null,{c,x:cam.x,y:cam.y+80},out,()=>{const t=out.textContent;if(t){msg.textContent=t;return;}msg.textContent=`${art(c)==="an"?"An":"A"} ${c} is on the way.${forWord?` Spell ${forWord} when it arrives.`:""}`;if(forWord)setSpell(forWord,[]);
     if(TUT.step===3){TUT.step=4;TUT.want=forWord;tutSave();coach(`Here comes your ${c}. Now spell ${forWord}.`);}renderIdeas();});}
+const PLAIN=new Set("THE AND FOR THAT YOU THIS WITH WAS ARE HAVE NOT BUT FROM THEY HIS HER SHE HIM ITS OUR OUT ALL CAN HAS HAD WHO WHAT WHEN WHERE WHICH WILL WOULD THERE THEIR THEM THEN THAN THESE THOSE BEEN WERE ANY SOME SUCH VERY JUST ALSO INTO ONLY OVER YOUR MORE MOST MUCH MANY EACH SAME BOTH DOES DID DOING BEING ABOUT AFTER AGAIN ONCE HERE HOW WHY OFF OWN SHOULD COULD MAY MIGHT MUST SHALL YET NOR".split(" "));
 const EASY=new Set("SUN SEA ANT EAT TEA RED HAT TOP NET TEN HOT ONE RUN SIT EGG ICE ART OAK OWL FUN JOY HUG MAP CUP BOX FOX BEE EYE EAR ARM LEG KEY DAY SKY CAT DOG PEN PIN TIN RAT MAT NUT HEN DEN POT DOT WET YES SON BAT BED BUS CAR COW FAN FIG HAM JAM LID MUD NAP OLD PET RUG SAD TOY VAN WEB ZOO AIR ASH BIG BOW DEW DIG EGO ELF END FIN FLY GEM GUM HAY HIP HOP INK JET KIT LAP LOG MIX NOD OAR OWN PAN PEA PIG RAY RIB ROD ROW SAW SEW SHY SKI SOW SPY TAP TOE TUB URN WAX WIN YAK YAM".split(" "));
 function setSpell(text,ids){text=String(text||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,12);SPELL.ids=[...text].map((ch,i)=>{const a=ids[i]!=null?agentById(ids[i]):null;return a&&a.ch===ch?a.id:null;});
   const inp=$p("stIn");if(inp.value!==text)inp.value=text;renderTiles();}
@@ -197,7 +200,7 @@ function tutStart(){if(TUT.step!==0)return;const v=vPlay();if(Object.keys(v.word
     for(const a0 of av.filter(a=>a.ch===x[0])){const used=new Set([a0.id]),pick=[a0];for(const ch of x.slice(1)){const b=av.filter(a=>a.ch===ch&&!used.has(a.id)).sort((p,q)=>dist(p,a0)-dist(q,a0))[0];used.add(b.id);pick.push(b);}
       const spread=Math.max(...pick.map(p=>dist(p,a0)))+i*.05;if(!best||spread<best.spread)best={w:x,ids:pick.map(p=>p.id),spread};}}
   if(!best)return;const w=best.w,ids=best.ids;
-  TUT.step=1;TUT.target={w,ids};tutSave();openSpell(false,true);frameOn(ids.map(agentById));coach(`Spell your first word: tap ${listNames([...w].map(ch=>"the "+ch))} in the world, then Say ${w}. Or type it.`);}
+  TUT.step=1;TUT.target={w,ids};tutSave();WX("await",null,{ids},null);openSpell(false,true);coach(`Spell your first word: tap ${listNames([...w].map(ch=>"the "+ch))} in the world, then Say ${w}. Or type it.`);frameOn(ids.map(agentById));}
 function tutCheck(){if(TUT.step===0&&tAnim>6&&!ATL.on&&!tour&&!document.body.classList.contains("broadcast")&&document.getElementById("intro").style.display==="none"&&!sheet.classList.contains("open")&&!CATCHING)tutStart();}
 function drawSpellMarks(t){if(!SPELL.on)return;const tg=TUT.step===1&&TUT.target?TUT.target.ids:[];ctx.save();
   for(const a of S.agents){if(!inView(a.x,a.y,40))continue;const cx=a.x+10*K,cy=a.y-42*K,i=SPELL.ids.indexOf(a.id);
@@ -225,7 +228,7 @@ rep('  for(const a of S.agents){const w=wordById(a.word);a.homeNow=', '  spokenT
 rep('else{for(const a of order)drawEmber(a,tAnim);drawBadges();drawSelection();}', 'else{for(const a of order)drawEmber(a,tAnim);drawBadges();drawSelection();}drawSpoken(tAnim);drawSpellMarks(tAnim);')
 rep('document.getElementById("shareBtn").style.display=tAnim<shareUntil&&lastMoment?"":"none";', 'document.getElementById("shareBtn").style.display=tAnim<shareUntil&&lastMoment?"":"none";playFrame();')
 rep('    case"meet":return w?`${a.name} is on the way to ${w.text}.`:`${a.name} is walking.`;',
-    '    case"say":{const sp=(S.spoken||[]).find(s=>s.id===act.sp);return sp?(sp.state==="say"?`${a.name} is saying ${sp.text} with the others.`:`${a.name} is hurrying to say ${sp.text}.`):`${a.name} is walking.`;}\n    case"meet":return w?`${a.name} is on the way to ${w.text}.`:`${a.name} is walking.`;')
+    '    case"await":return`${a.name} has noticed you, and is waiting to see what you’ll spell.`;\n    case"say":{const sp=(S.spoken||[]).find(s=>s.id===act.sp);return sp?(sp.state==="say"?`${a.name} is saying ${sp.text} with the others.`:`${a.name} is hurrying to say ${sp.text}.`):`${a.name} is walking.`;}\n    case"meet":return w?`${a.name} is on the way to ${w.text}.`:`${a.name} is walking.`;')
 rep('forming:"a word is forming",', 'forming:"a word is forming",spoken:"letters are saying a word",')
 # a tap picks a letter while spelling, instead of opening its card
 rep('let best=null,bd=Math.max(44,72/Math.max(.6,cam.z));\n  for(const a of S.agents){const d=', 'let best=null,bd=Math.max(SPELL.on?60:44,(SPELL.on?100:72)/Math.max(.6,cam.z));\n  for(const a of S.agents){if(SPELL.on&&!canSay(a))continue;const d=')
@@ -259,7 +262,7 @@ rep('<h3>Your standing: ${esc(TIERS[tier].n)}</h3><div class="meter" role="img" 
     '${(()=>{const vp=vPlay(v),L=levelOf(vp.earned),nx=nextOpen(L),ws=Object.keys(vp.words).sort((p,q)=>vp.words[q]-vp.words[p]);return`<h3>Level ${L}</h3><div class="meter" role="img" aria-label="Progress to level ${L+1}"><i style="width:${Math.round(clamp((vp.earned-LV(L))/(LV(L+1)-LV(L)),0,1)*100)}%"></i></div><p class="muted">${LV(L+1)-vp.earned} more sparks to level ${L+1}.${nx?` Level ${nx[0]} opens ${esc(nx[1])}.`:""}</p><h3>Your words: ${ws.length}</h3>${vp.firsts.length?`<p>First in the world: ${vp.firsts.slice(0,12).map(w=>`<b class="goldw">${esc(w)}</b>`).join(" ")}</p>`:""}<p class="muted">${ws.length?esc(ws.slice(0,24).join(" · ")):"Spell your first word: tap Spell a word at the bottom."}</p>`;})()}')
 rep('<h3>Your sparks: ${v.sparks}</h3><p class="muted">Sparks are earned only when your companions achieve something for the first time: joining a word, learning or teaching a skill, building, exploring new land, a world first. You spend them to act. A refused offer returns them. Standing decides what you may do; sparks pay for doing it.</p>',
     '<h3>Your sparks: ${v.sparks}</h3><p class="muted">You earn sparks by spelling words. Your companions also earn some on their own when they do something for the first time, up to 50 a day. Spend them to bring letters and help your companions; a refused offer returns them.</p>')
-rep('${esc(ab.d)}${!open&&ab.tier?` Opens at ${TIERS[ab.tier].n}.`:""}', '${esc(ab.d)}${!open&&ab.tier?` Opens at level ${TIER_LV[ab.tier]}.`:""}')
+rep('${esc(ab.d)}${!open&&ab.tier?` Opens at ${TIERS[ab.tier].n}.`:""}', '${esc(ab.d)}${!open&&ab.tier?(ab.tier===1||!S.visitor.adopted.length?` Opens when you adopt a letter${ab.tier>1?`, at level ${TIER_LV[ab.tier]}`:""}.`:` Opens at level ${TIER_LV[ab.tier]}.`):""}')
 
 # the first look: the whole game in three lines
 rep('''    <h2 class="intro-h">Two ways to be here</h2>
@@ -283,7 +286,7 @@ rep('if(el.style.display!=="none")el.style.bottom=(document.querySelector(".capt
 
 PLAY_HTML = '''<div id="playDock"><button type="button" id="pdSparks" class="pd-sp" aria-label="Your sparks and level. Open your letters"><span class="pd-n">✦ <b id="pdN">0</b></span><span class="pd-l"><span id="pdLv">Level 1</span><i class="pd-bar"><i id="pdBar"></i></i></span></button><div id="pdCombo" hidden><b>Combo ×2</b><i><i></i></i></div><button type="button" id="pdSpell" class="btn-primary">Spell a word</button></div>
 <section id="spellTray" hidden aria-label="Spell a word"><button type="button" class="st-x" id="stClose" aria-label="Close">×</button>
-  <div class="st-top"><div id="stTiles" class="st-tiles" aria-live="polite"></div><button type="button" id="stBack" class="st-back" aria-label="Remove the last letter">⌫</button></div>
+  <div class="st-top"><div id="stTiles" class="st-tiles" aria-live="polite"></div><span id="stCombo" class="st-combo" hidden></span><button type="button" id="stBack" class="st-back" aria-label="Remove the last letter">⌫</button></div>
   <form id="stForm" autocomplete="off"><input id="stIn" maxlength="12" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Type a word" aria-label="Type a word"><button class="btn-primary" id="stSay" disabled>Say it</button></form>
   <p id="stMsg" class="st-msg" aria-live="polite"></p><div id="stIdeas"></div></section>
 <div id="coach" role="status" hidden><span></span><button type="button" id="coachOk" class="btn-primary" hidden>Got it</button><button type="button" id="coachX" aria-label="Skip the tips">×</button></div>
@@ -311,6 +314,7 @@ body.spelling .caption,body.spelling #playDock{display:none}
 .st-tile{width:40px;height:48px;border-radius:9px;background:#F8F9F6;color:#1F2421;display:flex;align-items:center;justify-content:center;font:700 26px Spectral,Georgia,serif;box-shadow:0 2px 0 rgba(0,0,0,.35)}
 .st-tile.picked{box-shadow:0 0 0 3px #E8962F}.st-tiles.real .st-tile{background:#FFE7C2}
 .st-ph{color:#AEB6B0;font-size:15px}
+.st-combo{flex-shrink:0;height:30px;padding:0 10px;border-radius:15px;background:#E8962F;color:#1F2421;font-weight:700;font-size:13px;display:flex;align-items:center}.st-combo[hidden]{display:none}
 .st-back{width:44px;height:44px;border-radius:22px;border:1px solid #5B645E;background:transparent;color:#F8F9F6;font-size:18px;cursor:pointer;flex-shrink:0}
 #stForm{display:flex;gap:8px;margin-top:10px}#stIn{flex:1;min-width:0;height:44px;border-radius:22px;border:1px solid #5B645E;background:#2A302C;color:#F8F9F6;padding:0 16px;font:700 17px 'Atkinson Hyperlegible',sans-serif;letter-spacing:.08em;text-transform:uppercase}
 #stIn::placeholder{letter-spacing:0;text-transform:none;font-weight:400;color:#9AA39C}#stSay{height:44px;padding:0 18px;flex-shrink:0}#stSay:disabled{opacity:.45}
@@ -334,7 +338,7 @@ body.spelling .tour-btn,body.spelling #returnBtn,body.spelling #elsewhere,body.s
   .caption p{font-size:16px;line-height:1.3;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .caption .sub,.caption .row{display:none}.caption.open .row{display:flex;justify-content:flex-start}.caption.open .sub{display:block;text-align:left;margin-top:0}.caption.open p{-webkit-line-clamp:unset}
   .caption .btn-primary,.caption .btn-ghost{height:40px;padding:0 14px;font-size:14px}
-  .zoom{bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.spelling .zoom{display:none}
+  .zoom:not(.azoom){display:none}.hint{font-size:14px;padding:8px 6px 8px 12px}
   #playDock{left:12px;right:12px;transform:none;justify-content:space-between;max-width:none}
   .pd-sp{padding:0 8px;gap:8px}.pd-l{min-width:56px}#pdSpell{padding:0 16px}#pdCombo>i{width:48px}
   .st-tile{width:34px;height:42px;font-size:22px}.st-row{font-size:12px}
@@ -343,3 +347,5 @@ body.spelling .tour-btn,body.spelling #returnBtn,body.spelling #elsewhere,body.s
 i = s.rindex('</style>'); s = s[:i] + PLAY_CSS + s[i:]
 rep('awayStart();updateCaption();', 'awayStart();updateCaption();playInit();')
 rep('window.__lango={get world(){return WORLD},', 'window.__lango={get world(){return WORLD},get play(){return{SPELL,TUT,ideas,lex:LEX.length,levelOf,vPlay}},')
+# arrived letters wait in line for the others, instead of wandering off
+rep('function perform(a,dt){\n  const act=a.act;if(!act)return;act.t+=dt;const w=wordById(a.word);\n  switch(act.type){', 'function perform(a,dt){\n  const act=a.act;if(!act)return;act.t+=dt;const w=wordById(a.word);\n  switch(act.type){\n    case"say":case"await":return;')

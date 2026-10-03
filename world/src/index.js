@@ -182,6 +182,8 @@ export class World {
     for (const a of S.agents) if (!a || !NAMES.has(a.name) || typeof a.ch !== "string" || !/^[A-Z]$/.test(a.ch)) return "letter";
     if (!Array.isArray(S.words) || S.words.length > 120) return "words";
     for (const w of S.words) if (!w || typeof w.text !== "string" || !WORD_OK.test(w.text)) return "word";
+    if (S.spoken != null && this.badSpoken(S.spoken)) return "spoken";
+    if (S.vocab != null) { if (typeof S.vocab !== "object" || Array.isArray(S.vocab)) return "vocab"; const ks = Object.keys(S.vocab); if (ks.length > 12000 || ks.some(k => !WORD_OK.test(k))) return "vocab"; }
     for (const k of ["chronicle", "history", "moments"]) {
       const list = S[k];
       if (list == null) continue;
@@ -204,9 +206,12 @@ export class World {
     for (const a of m.A) if (!a || !NAMES.has(a.name) || typeof a.ch !== "string" || !/^[A-Z]$/.test(a.ch)) return "letter";
     if (!Array.isArray(m.W) || m.W.length > 120) return "words";
     for (const w of m.W) if (!w || typeof w.text !== "string" || !WORD_OK.test(w.text)) return "word";
+    if (m.SP != null && this.badSpoken(m.SP)) return "spoken";
     if (this.guard && (m.A.length < this.guard.agents - 3 || m.T < this.guard.simT - 30)) return "not this world";
     return null;
   }
+  // words letters are saying together right now: a short list of real-looking words
+  badSpoken(list) { return !Array.isArray(list) || list.length > 20 || list.some(s => !s || typeof s.text !== "string" || !WORD_OK.test(s.text) || !Array.isArray(s.ids) || s.ids.length > 12); }
   bar(id, why) {
     const c = this.clients.get(id);
     if (!c) return;
