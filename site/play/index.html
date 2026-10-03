@@ -2195,16 +2195,16 @@ const WORLD=(()=>{
   function light(a){const o={};for(const k in a)if(!HEAVY.includes(k))o[k]=a[k];return o;}
   function send(m){if(ws&&ws.readyState===1)ws.send(typeof m==="string"||m instanceof Uint8Array?m:JSON.stringify(m));}
   function snapshotText(){const {visitor,settings,...world}=S;return JSON.stringify({S:world,nextId,stories},round);}
-  async function sendSnap(){if(!W.keeper||!S||CATCHING)return;try{send(await pack(snapshotText()));}catch(e){}}
-  function sendLive(){if(!W.keeper||!S||CATCHING)return;const m={t:"live",T:S.simT,nid:nextId,A:S.agents.map(light),W:S.words,B:S.beasts,H:S.herd,X:S.structs,wx:S.wx,st:stories,pl:S.place,ph:S.placeHome,
+  let snapSentAt=0;async function sendSnap(force){if(!W.keeper||!S||CATCHING)return;if(force!==true&&W.n<=1&&Date.now()-snapSentAt<120000)return;snapSentAt=Date.now();try{send(await pack(snapshotText()));}catch(e){}}
+  function sendLive(){if(!W.keeper||!S||CATCHING||W.n<=1)return;const m={t:"live",T:S.simT,nid:nextId,A:S.agents.map(light),W:S.words,B:S.beasts,H:S.herd,X:S.structs,wx:S.wx,st:stories,pl:S.place,ph:S.placeHome,
       tf:S.trees.map(t=>[t.fruit,t.burning||0,t.charred||0]),tn:S.trees.length,fi:S.firsts,dc:S.discovered,E:evq};evq=[];send(JSON.stringify(m,round));}
-  W.ev=e=>{if(W.keeper&&!W.remote&&!CATCHING)evq.push(e);};W.snapNow=()=>sendSnap();
+  W.ev=e=>{if(W.keeper&&!W.remote&&!CATCHING)evq.push(e);};W.snapNow=()=>sendSnap(true);
   function sendMeta(){if(!W.keeper||!W.own||!S)return;const m=W.my()||{};if(!m.name&&m.id){m.name=W.autoName();W.setMy(m);}let v=null;try{v=valleyAt(yearsAgo());}catch(e){}
     send({t:"meta",name:m.name||W.autoName(),listed:m.listed!==false,x:v?v.x:0,yy:v?v.yy:0,y:yearsAgo(),place:v?v.name:"",letters:S.agents.length,words:S.words.filter(w=>w.state!=="forming").length});}
   W.autoName=()=>{const a=S&&(S.agents.find(x=>S.visitor&&S.visitor.adopted.includes(x.id))||S.agents.find(x=>!x.young));return a&&/^[A-Z][a-z]{1,11}$/.test(a.name)?a.name:"Asha";};
   W.sendMeta=sendMeta;
   function becomeKeeper(){W.keeper=true;W.mirror=false;W.live=true;if(S)S.agents.forEach(a=>{delete a._tx;delete a._ty;});
-    clearInterval(liveT);clearInterval(snapT);clearInterval(metaT);liveT=setInterval(sendLive,500);snapT=setInterval(sendSnap,10000);if(W.own)metaT=setInterval(sendMeta,30000);
+    clearInterval(liveT);clearInterval(snapT);clearInterval(metaT);liveT=setInterval(sendLive,500);snapT=setInterval(sendSnap,10000);if(W.own)metaT=setInterval(sendMeta,120000);
     if(started){sendSnap();sendMeta();const q=early;early=[];q.forEach(runCmd);}}
   function becomeWatcher(){W.keeper=false;W.mirror=true;clearInterval(liveT);clearInterval(snapT);clearInterval(metaT);}
   function syncPlace(){if(!S||!MAP)return;if(S.place&&MAP.key!==S.place){genWorld(S.place);W.bridges=new Set();buildTerrain();if(S.placeHome){HOME.x=S.placeHome.x;HOME.y=S.placeHome.y;}}
@@ -2258,13 +2258,13 @@ const WORLD=(()=>{
     const out=document.createElement("div");S.visitor=v;W.remote=true;W.from=m.from;try{CMD[m.name](a,m.args||{},out);}catch(e){}finally{W.remote=false;W.from=null;S.visitor=mine;}
     reply({html:out.innerHTML,visitor:v});}
   function connect(onWelcome){let socket;try{socket=new WebSocket(url);}catch(e){onWelcome(null);return;}ws=socket;socket.binaryType="arraybuffer";
-    socket.onopen=()=>{const h={t:"hello",visible:!document.hidden,mobile,key};if(W.mode==="mine")h.own=W.ensureMy().token;send(h);};
+    socket.onopen=()=>{clearInterval(socket._ping);socket._ping=setInterval(()=>{if(socket.readyState===1)socket.send("ping");},45000);const h={t:"hello",visible:!document.hidden,mobile,key};if(W.mode==="mine")h.own=W.ensureMy().token;send(h);};
     socket.onmessage=async e=>{if(typeof e.data!=="string"){const text=await unpack(e.data);if(!started){W.snapText=text;onWelcome&&onWelcome("snap");return;}if(W.mirror)applySnap(text);return;}
       let m;try{m=JSON.parse(e.data);}catch(err){return;}
       if(m.t==="welcome"){W.down=false;backoff=1000;W.n=m.n||1;W.live=m.live!==false;if(m.name)W.vname=m.name;
         if(!started){if(m.keeper){W.keeper=true;if(!m.hasSnap)onWelcome&&onWelcome(W.mode==="mine"?"mine":"new");}else if(W.mode==="mine"){W.mirror=true;if(!m.hasSnap)onWelcome&&onWelcome("mine");}else{W.mirror=true;if(!m.hasSnap)onWelcome&&onWelcome("empty");}}
         else{if(m.keeper&&!W.keeper)becomeKeeper();else if(!m.keeper&&W.keeper)becomeWatcher();}}
-      else if(m.t==="count"){W.n=m.n;if(m.live!=null)W.live=m.live;}
+      else if(m.t==="count"){const was=W.n;W.n=m.n;if(m.live!=null)W.live=m.live;if(W.keeper&&started&&m.n>was)sendSnap(true);}
       else if(m.t==="role"){if(m.keeper)becomeKeeper();else becomeWatcher();}
       else if(m.t==="live"){if(W.mirror&&started)applyLive(m);}
       else if(m.t==="cmd"){if(W.keeper&&started)runCmd(m);else if(W.keeper)early.push(m);}
@@ -2282,7 +2282,7 @@ const WORLD=(()=>{
     if(!how){try{ws&&ws.close();}catch(e){}ws=null;W.keeper=W.mirror=false;if(W.mode!=="mine"&&W.mode!=="world"){W.mode=null;}W.own=false;return;}
     W.on=true;if(how==="new"||how==="mine")W.snapText=null;};
   W.started=()=>{started=true;wrap();if(W.keeper)becomeKeeper();else{becomeWatcher();if(W.snapText)applySnap(W.snapText);}
-    document.addEventListener("visibilitychange",()=>send({t:"vis",on:!document.hidden}));};
+    document.addEventListener("visibilitychange",()=>{if(document.hidden&&W.keeper)sendSnap(true);send({t:"vis",on:!document.hidden});});addEventListener("pagehide",()=>{if(W.keeper)sendSnap(true);});};
   return W;})();
 CMD.help=(a,args,res)=>{if(!["water","fruit","rest","tend","friend"].includes(args.k))return;const vt=(S.visitor.trustIn=S.visitor.trustIn||{})[a.id]||0;const cost=args.free?0:1;if(cost&&!spend(1,`Offered help to ${a.name}`)){res.textContent="You need 1 spark for everyday help. Care in hard times is always free.";return;}
     if(rnd()<.45+vt*.35+a.tr.curiosity*.2-a.tr.caution*.15+(args.free?.25:0)){S.visitor.trustIn[a.id]=clamp(vt+.1,-1,1);a.nudgedUntil=S.simT+240;const k=args.k;done(a);

@@ -14,6 +14,7 @@
 const MAX_SNAPSHOT = 3 * 1024 * 1024;
 const PERSIST_EVERY = 60 * 1000;
 const KEEPER_QUIET = 8 * 1000;
+const WATCH_EVERY = 5 * 1000; // how often a world with more than one person checks its keeper is still there
 const CMD_PER_MIN = 30;
 const ARRIVE_GAP = 2 * 60 * 1000;
 const VALLEY_ID = /^[a-z0-9]{6,16}$/;
@@ -76,21 +77,34 @@ export class World {
     this.reportedAt = 0;
     this.arrivals = new Map(); // ip -> time, in The World
     this.guard = null; // what The World's last good snapshot said: {created, simT, agents, nextId}
+    // Sockets use Cloudflare's hibernation: between messages the object sleeps and costs nothing, and when it wakes
+    // it rebuilds who is here from each socket's attachment. Nothing runs on a timer while one person or nobody is
+    // here, so an empty world, or one person alone, uses almost none of the daily allowance.
+    for (const ws of ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() || {};
+      if (!a.id) continue;
+      this.clients.set(a.id, { ...a, ws, cmds: [] });
+      if (a.k) this.keeper = a.id;
+      this.nextId = Math.max(this.nextId, (+a.id || 0) + 1);
+    }
+    this.keeperHeard = Date.now();
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.ready = ctx.blockConcurrencyWhile(async () => {
+      this.wid = (await ctx.storage.get("wid")) || null;
+      this.nextId = Math.max(this.nextId, (await ctx.storage.get("nextId")) || 1);
       const s = await ctx.storage.get("snap");
       if (s) { this.snap = new Uint8Array(s); this.snapAt = (await ctx.storage.get("snapAt")) || 0; }
       this.ownerHash = (await ctx.storage.get("ownerHash")) || null;
       this.inbox = (await ctx.storage.get("inbox")) || [];
       this.meta = (await ctx.storage.get("meta")) || null;
     });
-    this.timer = setInterval(() => this.tick(), 2000);
   }
 
   get isValley() { return this.wid && this.wid !== "world"; }
 
   async fetch(req) {
     await this.ready;
-    if (!this.wid) this.wid = req.headers.get("x-lh-world") || "world";
+    if (!this.wid) { this.wid = req.headers.get("x-lh-world") || "world"; await this.ctx.storage.put("wid", this.wid); }
     const url = new URL(req.url);
     if (url.pathname === "/status") {
       const n = [...this.clients.values()].filter((c) => c.hello && !c.courier).length;
@@ -99,20 +113,36 @@ export class World {
     if (url.pathname === "/restore" || url.pathname === "/backups") return this.admin(req, url);
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
-    server.accept();
+    this.ctx.acceptWebSocket(server);
     const id = String(this.nextId++);
-    const c = { ws: server, joined: Date.now(), visible: true, mobile: false, trusted: false, owner: false, courier: false, cmds: [], hello: false,
+    this.ctx.storage.put("nextId", this.nextId);
+    const c = { ws: server, id, joined: Date.now(), visible: true, mobile: false, trusted: false, owner: false, courier: false, cmds: [], hello: false,
       ip: req.headers.get("cf-connecting-ip") || "local" };
     this.clients.set(id, c);
-    server.addEventListener("message", async (e) => {
-      let d = e.data;
-      if (typeof d !== "string" && !(d instanceof ArrayBuffer)) { try { d = await new Response(d).arrayBuffer(); } catch (err) { return; } }
-      this.onMessage(id, d);
-    });
-    server.addEventListener("close", () => this.drop(id));
-    server.addEventListener("error", () => this.drop(id));
+    this.keep(c);
     return new Response(null, { status: 101, webSocket: client });
   }
+
+  // what survives hibernation about each person, stored on their socket
+  keep(c) {
+    try { c.ws.serializeAttachment({ id: c.id, joined: c.joined, visible: c.visible, mobile: c.mobile, trusted: c.trusted, owner: c.owner, courier: c.courier, hello: c.hello, barred: !!c.barred, ip: c.ip, k: c.id === this.keeper }); } catch (e) {}
+  }
+  setKeeper(id) {
+    const old = this.keeper;
+    this.keeper = id;
+    if (old && this.clients.has(old)) this.keep(this.clients.get(old));
+    if (id && this.clients.has(id)) this.keep(this.clients.get(id));
+  }
+  idOf(ws) { const a = ws.deserializeAttachment(); return a && a.id; }
+  async webSocketMessage(ws, data) { await this.ready; const id = this.idOf(ws); if (id && this.clients.has(id)) await this.onMessage(id, data); }
+  async webSocketClose(ws) { await this.ready; const id = this.idOf(ws); if (id) this.drop(id); }
+  async webSocketError(ws) { await this.ready; const id = this.idOf(ws); if (id) this.drop(id); }
+  // with more than one person here, check now and then that the keeper is still there; otherwise stay asleep
+  async watch() {
+    if (this.clients.size < 2) return;
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + WATCH_EVERY);
+  }
+  async alarm() { await this.ready; this.tick(); await this.watch(); }
 
   send(id, msg) {
     const c = this.clients.get(id);
@@ -182,7 +212,8 @@ export class World {
     if (!c) return;
     console.log("barred a keeper:", why);
     c.barred = true;
-    if (this.keeper === id) { this.send(id, { t: "role", keeper: false }); this.keeper = null; this.elect(id); }
+    this.keep(c);
+    if (this.keeper === id) { this.send(id, { t: "role", keeper: false }); this.setKeeper(null); this.elect(id); }
     if (this.snap) this.send(id, this.snap);
   }
 
@@ -207,9 +238,9 @@ export class World {
     try { const o = JSON.parse(await this.unpack(this.snap)); this.guard = this.guardFrom(o); } catch (e) {}
     await this.ctx.storage.put({ snap: buf, snapAt: this.snapAt });
     this.persistedAt = Date.now();
-    if (this.keeper) { this.send(this.keeper, { t: "role", keeper: false }); this.keeper = null; }
+    if (this.keeper) { this.send(this.keeper, { t: "role", keeper: false }); this.setKeeper(null); }
     for (const [id, c] of this.clients) if (c.hello && !c.courier) this.send(id, this.snap);
-    setTimeout(() => this.elect(null), 1500);
+    await this.ctx.storage.setAlarm(Date.now() + 1500); // the alarm elects a keeper who has loaded the restored world
     return new Response(JSON.stringify({ restored: pick }));
   }
 
@@ -248,21 +279,25 @@ export class World {
           c.owner = h === this.ownerHash;
         }
         c.hello = true;
+        this.keep(c);
         if (c.courier) { this.send(id, { t: "welcome", id, keeper: false, courier: true }); return; }
         let keeper = false;
         const cur = this.keeper && this.clients.get(this.keeper);
         if (this.canKeep(c) && (!cur || (c.trusted && !cur.trusted) || (c.owner && this.isValley))) {
           if (this.keeper) this.send(this.keeper, { t: "role", keeper: false });
-          this.keeper = id; this.keeperHeard = Date.now(); keeper = true;
+          this.setKeeper(id); this.keeperHeard = Date.now(); keeper = true;
         }
         this.send(id, { t: "welcome", id, keeper, owner: c.owner, hasSnap: !!this.snap, n: this.people(), live: !!this.keeper, valley: this.isValley, name: this.meta?.name || null });
+        if (!keeper) this.keeperHeard = Date.now(); // the keeper may have been quiet while alone; give it time to notice
         if (this.snap) this.send(id, this.snap); // a valley owner gets it too: their other device may have kept it since
         if (keeper) this.flushInbox();
         this.count();
+        this.watch();
         break;
       }
       case "vis":
         c.visible = !!m.on;
+        this.keep(c);
         if (this.isValley) break;
         if (id === this.keeper && !c.visible) this.elect(id);
         else if (!this.keeper && c.visible) this.elect(null);
@@ -277,7 +312,7 @@ export class World {
         // the owner describes their valley for the Atlas
         if (id !== this.keeper || !this.isValley || !c.owner) return;
         this.meta = this.cleanMeta(m);
-        if (Date.now() - this.reportedAt > 25000) this.report(true);
+        if (Date.now() - this.reportedAt > 100000) this.report(true);
         break;
       case "res":
         if (id !== this.keeper || typeof m.to !== "string") return;
@@ -345,14 +380,14 @@ export class World {
     cands.sort((a, b) => (b[1].trusted - a[1].trusted) || (a[1].mobile - b[1].mobile) || (a[1].joined - b[1].joined));
     if (!cands.length) {
       if (old && this.clients.has(old)) return; // nobody better: keep the current keeper, even hidden
-      this.keeper = null;
+      this.setKeeper(null);
       this.count();
       return;
     }
     const next = cands[0][0];
     if (next === old) return;
     if (old && this.clients.has(old)) this.send(old, { t: "role", keeper: false });
-    this.keeper = next;
+    this.setKeeper(next);
     this.keeperHeard = Date.now();
     this.send(next, { t: "role", keeper: true });
     this.flushInbox();
@@ -365,7 +400,7 @@ export class World {
     try { this.clients.get(id).ws.close(); } catch (e) {}
     this.clients.delete(id);
     if (id === this.keeper) {
-      this.keeper = null;
+      this.setKeeper(null);
       this.elect(null);
       if (this.isValley && !this.keeper) this.report(false);
     }
@@ -376,7 +411,6 @@ export class World {
   tick() {
     if (this.keeper && Date.now() - this.keeperHeard > KEEPER_QUIET && this.clients.size > 1 && !this.isValley) this.elect(this.keeper);
     if (!this.keeper && this.clients.size) this.elect(null);
-    if (this.isValley && this.keeper && this.meta && Date.now() - this.reportedAt > 30000) this.report(true);
   }
 
   async persist() {
@@ -414,12 +448,12 @@ export class Directory {
       if (!v || !VALLEY_ID.test(v.id)) return new Response("bad", { status: 400 });
       if (!v.listed || !v.name) this.list.delete(v.id);
       else this.list.set(v.id, { id: v.id, name: v.name, x: v.x, yy: v.yy, y: v.y, place: v.place, letters: v.letters, words: v.words, online: !!v.online, watching: v.watching | 0, seen: now });
-      if (!this.dirty) { this.dirty = true; setTimeout(() => this.save(), 20000); }
+      await this.save();
       return new Response("ok");
     }
     if (url.pathname === "/list") {
       const out = [...this.list.values()].filter((v) => now - v.seen < 48 * 3600 * 1000)
-        .map((v) => ({ ...v, online: v.online && now - v.seen < 90000 }))
+        .map((v) => ({ ...v, online: v.online && now - v.seen < 5 * 60000 }))
         .sort((a, b) => (b.online - a.online) || (b.seen - a.seen)).slice(0, 150);
       return new Response(JSON.stringify({ valleys: out }));
     }
