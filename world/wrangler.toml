@@ -11,6 +11,10 @@ class_name = "World"
 name = "DIR"
 class_name = "Directory"
 
+[[durable_objects.bindings]]
+name = "PAGE"
+class_name = "Page"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["World"]
@@ -18,3 +22,7 @@ new_sqlite_classes = ["World"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Directory"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Page"]

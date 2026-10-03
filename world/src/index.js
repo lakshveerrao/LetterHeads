@@ -22,6 +22,10 @@ const NAME_OK = /^[A-Z][a-z]{1,11}$/; // valley names are built from letter name
 // Every letter in The World carries one of the game's own names, so a keeper that sends anything else is not the game.
 const NAMES = new Set(["Asha","Kofi","Mei","Luca","Amara","Tariq","Yuki","Lars","Zola","Emeka","Leila","Chen","Ines","Ravi","Nia","Omar","Sofia","Kenji","Ayo","Mila","Diego","Hana","Farah","Ivan","Priya","Tomas","Ama","Wen","Elif","Sami","Rosa","Kwame","Lina","Arjun","Noor","Pablo","Aiko","Dara","Maya","Juno","Sade","Pavel","Anya","Kai","Zeynep","Rahim","Lucia","Tariku","Mira","Oskar","Yara","Chidi","Selin","Hugo","Aroha","Minh","Nadia","Felix","Imani","Rohan","Esme","Joon","Talia","Bruno","Keira","Idris","Suki","Mateo","Freya","Ade","Lian","Nour"]);
 const WORD_OK = /^[A-Z]{2,14}$/;
+const PAGE_ID = /^[a-z0-9]{8,16}$/;
+import LEXTEXT from "./lexicon.txt";
+let LEXSET = null;
+const inLex = (w) => { if (!LEXSET) LEXSET = new Set(LEXTEXT.trim().split("\n")); return LEXSET.has(w); };
 const TAG_LIKE = /<[a-z\/!]/i;
 
 export default {
@@ -46,6 +50,16 @@ export default {
       // for the project's owner only (the key is a Worker secret set by the deploy workflow): list the hourly backups
       // of The World, or put one back
       const r = await stub.fetch(new Request(url.origin + url.pathname + url.search, { method: req.method, headers: { "x-lh-world": w, "x-lh-key": req.headers.get("x-lh-key") || "" } }));
+      return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json", ...cors } });
+    }
+    if (url.pathname.startsWith("/page")) {
+      // a player's own page: their letters, their gold words, and how many people their links have brought
+      const p = url.searchParams.get("p") || "";
+      if (!PAGE_ID.test(p)) return new Response("Unknown page", { status: 404, headers: cors });
+      const ps = env.PAGE.get(env.PAGE.idFromName("p:" + p));
+      const body = req.method === "POST" ? await req.text() : "";
+      if (body.length > 12000) return new Response("too big", { status: 413, headers: cors });
+      const r = await ps.fetch(new Request("https://page" + url.pathname, { method: req.method, body: req.method === "POST" ? body : undefined }));
       return new Response(await r.text(), { status: r.status, headers: { "content-type": "application/json", ...cors } });
     }
     if (url.pathname === "/valleys") {
@@ -471,4 +485,64 @@ export class Directory {
     for (const [id, v] of this.list) if (now - v.seen > 48 * 3600 * 1000) this.list.delete(id);
     await this.ctx.storage.put("list", [...this.list.values()]);
   }
+}
+
+// One player's page. The owner proves it is theirs with a secret only their browser knows (stored here as a hash).
+// Each new person who opens one of their links adds 5 sparks for the owner to collect, at most 50 a day.
+// No timers: it wakes only for requests.
+export class Page {
+  constructor(ctx) { this.ctx = ctx; }
+  async fetch(req) {
+    const url = new URL(req.url), st = this.ctx.storage, now = Date.now(), day = new Date(now).toISOString().slice(0, 10);
+    const ok = (o) => new Response(JSON.stringify(o));
+    const bad = (m, code = 400) => new Response(JSON.stringify({ error: m }), { status: code });
+    let b = null;
+    if (req.method === "POST") { try { b = JSON.parse(await req.text()); } catch (e) { return bad("bad json"); } if (!b || typeof b !== "object") return bad("bad json"); }
+    const page = await st.get("page");
+    if (url.pathname === "/page" && req.method === "GET") {
+      if (!page) return bad("no page", 404);
+      return ok({ ...page.data, views: page.views | 0, updated: page.updated });
+    }
+    if (url.pathname === "/page/visit" && req.method === "POST") {
+      if (!page) return bad("no page", 404);
+      const vt = String(b.vt || "");
+      if (!/^[a-z0-9]{12,24}$/.test(vt) || vt === page.ownerVt) return ok({ ok: true });
+      const seen = (await st.get("seen")) || [];
+      if (seen.includes(vt)) return ok({ ok: true });
+      seen.push(vt); if (seen.length > 3000) seen.splice(0, seen.length - 3000);
+      page.views = (page.views | 0) + 1;
+      if (page.day !== day) { page.day = day; page.today = 0; }
+      if (page.today < 50) { page.today += 5; page.pending = (page.pending | 0) + 5; }
+      await st.put({ seen, page });
+      return ok({ ok: true });
+    }
+    if ((url.pathname === "/page/save" || url.pathname === "/page/claim") && req.method === "POST") {
+      const key = String(b.key || "");
+      if (!/^[a-z0-9]{24,48}$/.test(key)) return bad("bad key", 403);
+      const h = await sha(key);
+      if (page && page.keyHash !== h) return bad("not yours", 403);
+      if (url.pathname === "/page/claim") {
+        if (!page) return bad("no page", 404);
+        const n = page.pending | 0; page.pending = 0; await st.put("page", page);
+        return ok({ n, views: page.views | 0 });
+      }
+      const data = cleanPage(b.data);
+      if (!data) return bad("bad page");
+      const np = page || { keyHash: h, views: 0, pending: 0, today: 0, day, created: now };
+      np.data = data; np.updated = now; if (/^[a-z0-9]{12,24}$/.test(String(b.vt || ""))) np.ownerVt = String(b.vt);
+      await st.put("page", np);
+      return ok({ ok: true, views: np.views | 0 });
+    }
+    return bad("not found", 404);
+  }
+}
+
+function cleanPage(d) {
+  if (!d || typeof d !== "object") return null;
+  const int = (x, max) => (Number.isFinite(x) ? Math.max(0, Math.min(max, Math.floor(x))) : 0);
+  const letters = Array.isArray(d.letters) ? d.letters.slice(0, 6).filter((l) => l && /^[A-Z]$/.test(l.ch) && NAMES.has(l.name)).map((l) => ({ ch: l.ch, name: l.name })) : [];
+  const words = (a, n) => (Array.isArray(a) ? [...new Set(a.filter((w) => typeof w === "string" && WORD_OK.test(w) && inLex(w)))].slice(0, n) : []);
+  const valley = typeof d.valley === "string" && VALLEY_ID.test(d.valley) ? d.valley : null;
+  return { letters, firsts: words(d.firsts, 24), recent: words(d.recent, 12), words: int(d.words, 100000), level: int(d.level, 999), earned: int(d.earned, 1e9),
+    stories: int(d.stories, 200), alpha: int(d.alpha, 26), valley, era: typeof d.era === "string" && /^[A-Za-z' ,]{3,40}$/.test(d.era) ? d.era : "" };
 }

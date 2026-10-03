@@ -77,3 +77,64 @@ SHARE_CSS = r'''
 body.atlas-on #clipToast,body.broadcast #clipToast,body.filming #clipToast{display:none!important}
 '''
 i = s.rindex('</style>'); s = s[:i] + SHARE_CSS + s[i:]
+
+# Your own page (3 October 2026): letterheads.live/play/?p=<id> shows your letters, your gold words and your history
+# book to anyone you send it to. Every link you share carries it, and each new person who opens one earns you
+# 5 sparks (at most 50 a day), collected the next time you play. The world server stores only what the page shows.
+PAGE_JS = r'''
+// ================= your page: your letters and words, and sparks for every new person you bring =================
+const PG={me:null,vt:null,base:null,at:0,views:0,shown:null};
+function rid(n){const a="abcdefghijklmnopqrstuvwxyz0123456789",r=crypto.getRandomValues(new Uint8Array(n));let s="";for(const x of r)s+=a[x%36];return s;}
+try{PG.me=JSON.parse(localStorage.getItem("letterheads_page_v1")||"null");}catch(e){}
+try{PG.vt=localStorage.getItem("letterheads_vt_v1");if(!PG.vt){PG.vt=rid(16);localStorage.setItem("letterheads_vt_v1",PG.vt);}}catch(e){PG.vt=rid(16);}
+async function pgBase(){if(PG.base)return PG.base;let b=new URLSearchParams(location.search).get("world");
+  if(!b){try{const r=await fetch("/world.json",{cache:"no-store"});if(r.ok)b=(await r.json()).url;}catch(e){}}
+  if(!b||!/^wss?:\/\//.test(b))return null;PG.base=b.split("?")[0].replace(/^ws/,"http").replace(/\/ws$/,"");return PG.base;}
+async function pgCall(path,p,body){const b=await pgBase();if(!b)return null;try{const r=await fetch(`${b}${path}?p=${p}`,body?{method:"POST",body:JSON.stringify(body)}:{cache:"no-store"});return r.ok?await r.json():null;}catch(e){return null;}}
+function pgData(){const v=vPlay(),ad=(S.visitor.adopted||[]).map(agentById).filter(Boolean);
+  return{letters:ad.map(a=>({ch:a.ch,name:a.name})),firsts:v.firsts.slice(0,24),recent:Object.keys(v.words).sort((p,q)=>v.words[q]-v.words[p]).slice(0,12),words:Object.keys(v.words).length,
+    level:levelOf(v.earned),earned:v.earned,stories:Object.keys(HB.f).length,alpha:Object.keys(HB.l).length,valley:WORLD.on&&WORLD.mode==="mine"?WORLD.vid:null,era:eraNow().name};}
+function pgSaveMe(){try{localStorage.setItem("letterheads_page_v1",JSON.stringify(PG.me));}catch(e){}}
+async function pgPublish(){if(!PG.me){PG.me={p:rid(10),key:rid(32)};pgSaveMe();}const r=await pgCall("/page/save",PG.me.p,{key:PG.me.key,vt:PG.vt,data:pgData()});
+  if(r&&r.ok){PG.at=Date.now();PG.views=r.views|0;PG.me.live=1;pgSaveMe();}return r;}
+function pgLink(){return PG.me&&PG.me.live?`https://letterheads.live/play/?p=${PG.me.p}`:null;}
+function withPage(link){const p=PG.me&&PG.me.live?PG.me.p:null;return p?link+(link.includes("?")?"&":"?")+"p="+p:link;}
+async function pgClaim(){if(!PG.me||!PG.me.live)return;const r=await pgCall("/page/claim",PG.me.p,{key:PG.me.key});if(!r)return;PG.views=r.views|0;
+  if(r.n>0){const v=vPlay();v.sparks+=r.n;v.earned+=r.n;v.sparkLog&&v.sparkLog.unshift({t:Date.now(),n:r.n,text:`${r.n/5} new ${r.n===5?"person":"people"} opened your links`});
+    note(`${r.n/5} new ${r.n===5?"person":"people"} opened your links: +${r.n} ✦`);dockTick();}}
+let pgTickAt=0;function pgTick(){const now=performance.now();if(now<pgTickAt)return;pgTickAt=now+20000;
+  const q=new URLSearchParams(location.search).get("p");
+  if(q&&/^[a-z0-9]{8,16}$/.test(q)&&PG.shown!==q&&document.getElementById("intro").style.display==="none"&&!sheet.classList.contains("open")&&!tutOn()){PG.shown=q;if(!PG.me||PG.me.p!==q)pgVisit(q);}
+  if(PG.me&&PG.me.live&&!document.hidden){if(!PG.claimed){PG.claimed=1;pgClaim();}if(Date.now()-PG.at>10*60000)pgPublish().then(()=>pgClaim());}}
+async function pgVisit(p){let seen={};try{seen=JSON.parse(localStorage.getItem("letterheads_seen_pages_v1")||"{}");}catch(e){}
+  if(!seen[p]){seen[p]=1;try{localStorage.setItem("letterheads_seen_pages_v1",JSON.stringify(seen));}catch(e){}pgCall("/page/visit",p,{vt:PG.vt});}
+  const d=await pgCall("/page",p);if(d)pgShow(d);}
+function pgShow(d){const who=d.letters.length?listNames(d.letters.slice(0,3).map(l=>l.name)):d.firsts.length?`The first to say ${d.firsts[0]}`:"A Letterheads player";
+  openSheet(`<h2 id="sheetTitle">${esc(who)}${d.letters.length>3?" and friends":""}</h2><p class="muted">A player's page in Letterheads${d.era?` · ${esc(d.era)}`:""}</p>
+   ${d.letters.length?`<div class="pg-ls">${d.letters.map(l=>`<span><b>${l.ch}</b>${esc(l.name)}</span>`).join("")}</div>`:""}
+   <p><b>Level ${d.level}</b> · ${d.words.toLocaleString()} word${d.words===1?"":"s"} spelled · ${d.stories} real stories found · ${d.alpha} of 26 letter stories</p>
+   ${d.firsts.length?`<h3>First in the world</h3><p>${d.firsts.map(w=>`<b class="goldw">${esc(w)}</b>`).join(" ")}</p>`:""}
+   ${d.recent.length?`<h3>Lately</h3><p class="muted">${esc(d.recent.join(" · "))}</p>`:""}
+   <div class="actions"><button class="main" type="button" data-pg="play">Spell your own words</button>${d.valley?`<button type="button" data-pg="valley" data-v="${esc(d.valley)}">Visit their valley</button>`:""}</div>
+   <p class="muted">Letterheads is a living world of letters going through real history. Letters only say a word if they agree to.</p>`,"page");}
+function pgDashHTML(){const l=pgLink();return`<h3>Your page</h3>${l?`<p class="muted">${PG.views} ${PG.views===1?"person has":"people have"} opened your links. Each new person earns you 5 ✦, up to 50 a day.</p><div class="actions"><button class="main" type="button" data-pg="share">Share my page</button></div><p class="muted pg-url">${esc(l)}</p>`
+  :`<p class="muted">Make a page that shows your letters, your gold words and your history book. Each new person who opens it earns you 5 ✦, up to 50 a day.</p><div class="actions"><button class="main" type="button" data-pg="make">Make my page</button></div>`}`;}
+async function pgShare(){const l=pgLink();if(!l)return;const v=vPlay(),text=`My letters in Letterheads${v.firsts.length?`: first in the world to say ${v.firsts.slice(0,3).join(", ")}`:""}. Come spell with them.`;
+  try{if(navigator.share){await navigator.share({text,url:l});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  try{await navigator.clipboard.writeText(text+" "+l);note("Your page link is copied. Paste it anywhere.");}catch(e){note(l);}}
+document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-pg]");if(!b)return;const k=b.dataset.pg;
+  if(k==="play"){closeSheet();if(!SPELL.on)openSpell(false);}
+  else if(k==="valley")location.href="/play/?v="+encodeURIComponent(b.dataset.v)+"&p="+encodeURIComponent(PG.shown||"");
+  else if(k==="make"){b.disabled=true;b.textContent="Making your page…";const r=await pgPublish();if(r&&r.ok){renderDashboard(false);pgShare();}else{b.disabled=false;b.textContent="Couldn't reach the server. Try again";}}
+  else if(k==="share"){await pgPublish();pgShare();}});
+'''
+rep('function save(){if(WORLD.remote)return;', PAGE_JS + '\nfunction save(){if(WORLD.remote)return;')
+rep('histWatch();clipTick();', 'histWatch();clipTick();pgTick();')
+rep('${histBookHTML()}`;})()}', '${pgDashHTML()}${histBookHTML()}`;})()}')
+rep('async function clipShare(){const L=CLIP.last;if(!L)return;const link=momentLink({who:L.who}),', 'async function clipShare(){const L=CLIP.last;if(!L)return;if(!pgLink())await pgPublish();const link=withPage(momentLink({who:L.who})),')
+rep('CLIP,clipStart,clipCan}},', 'CLIP,clipStart,clipCan,PG,pgPublish,pgClaim}},')
+PAGE_CSS = r'''
+.pg-ls{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.pg-ls span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#5A635D}.pg-ls b{width:44px;height:52px;border-radius:10px;background:#F8F9F6;border:2px solid #1F2421;display:flex;align-items:center;justify-content:center;font:700 28px Spectral,Georgia,serif;color:#1F2421}
+.pg-url{word-break:break-all;font-size:12px}
+'''
+i = s.rindex('</style>'); s = s[:i] + PAGE_CSS + s[i:]
