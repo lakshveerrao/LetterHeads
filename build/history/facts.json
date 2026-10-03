@@ -1,0 +1,654 @@
+[
+{
+"id": "tool",
+"words": [
+"TOOL",
+"STONE",
+"ROCK"
+],
+"ya": 3300000,
+"text": "At Lomekwi in Kenya, early humans chipped stones into tools about 3.3 million years ago, the oldest stone tools known.",
+"src": [
+"Harmand and colleagues, 2015, Nature",
+"https://doi.org/10.1038/nature14464"
+],
+"checked": true
+},
+{
+"id": "fire",
+"words": [
+"FIRE",
+"ASH",
+"FLAME"
+],
+"ya": 1000000,
+"text": "At Wonderwerk Cave in South Africa, early humans had fires that left burned bone and plant ash about 1 million years ago.",
+"src": [
+"Berna and colleagues, 2012, PNAS",
+"https://doi.org/10.1073/pnas.1117620109"
+],
+"checked": true
+},
+{
+"id": "cook",
+"words": [
+"COOK",
+"ROAST"
+],
+"ya": 780000,
+"text": "At Gesher Benot Ya'aqov in Israel, early humans cooked fish from a lake about 780,000 years ago.",
+"src": [
+"Zohar and colleagues, 2022, Nature Ecology & Evolution",
+"https://doi.org/10.1038/s41559-022-01910-z"
+],
+"checked": true
+},
+{
+"id": "wood",
+"words": [
+"WOOD",
+"LOG",
+"HUT",
+"BUILD"
+],
+"ya": 476000,
+"text": "At Kalambo Falls in Zambia, early humans cut notches to join two logs into a structure at least 476,000 years ago.",
+"src": [
+"Barham and colleagues, 2023, Nature",
+"https://doi.org/10.1038/s41586-023-06557-9"
+],
+"checked": true
+},
+{
+"id": "spear",
+"words": [
+"SPEAR",
+"HUNT",
+"THROW"
+],
+"ya": 200000,
+"text": "At Schöningen in Germany, hunters made long wooden spears and used them on horses at least 200,000 years ago.",
+"src": [
+"Hutson and colleagues, 2025, Science Advances",
+"https://doi.org/10.1126/sciadv.adv0752"
+],
+"checked": true
+},
+{
+"id": "harpoon",
+"words": [
+"FISH",
+"BONE"
+],
+"ya": 90000,
+"text": "At Katanda in Congo, people carved barbed bone points, likely for catching big catfish, about 90,000 years ago.",
+"src": [
+"Yellen and colleagues, 1995, Science",
+"https://doi.org/10.1126/science.7725100"
+],
+"checked": true
+},
+{
+"id": "clothes",
+"words": [
+"CLOTH",
+"COAT",
+"WEAR",
+"DRESS"
+],
+"ya": 126500,
+"text": "In Africa, lice that live only in clothes split from head lice at least 83,000 and maybe 170,000 years ago, a clue people wore clothes.",
+"src": [
+"Toups and colleagues, 2011, Molecular Biology and Evolution",
+"https://doi.org/10.1093/molbev/msq234"
+],
+"checked": true
+},
+{
+"id": "boat",
+"words": [
+"BOAT",
+"RAFT",
+"SEA",
+"SAIL"
+],
+"ya": 65000,
+"text": "At Madjedbebe in northern Australia, people were living about 65,000 years ago, after crossing open sea to get there.",
+"src": [
+"Clarkson and colleagues, 2017, Nature",
+"https://doi.org/10.1038/nature22968"
+],
+"checked": true
+},
+{
+"id": "bead",
+"words": [
+"BEAD",
+"SHELL"
+],
+"ya": 75000,
+"text": "At Blombos Cave in South Africa, people strung tiny shells with holes in them as beads about 75,000 years ago.",
+"src": [
+"Henshilwood and colleagues, 2004, Science",
+"https://doi.org/10.1126/science.1095905"
+],
+"checked": true
+},
+{
+"id": "paint",
+"words": [
+"PAINT",
+"ART",
+"PIG"
+],
+"ya": 51200,
+"text": "At Leang Karampuang cave in Sulawesi, Indonesia, people painted a wild pig and three human-like figures at least 51,200 years ago.",
+"src": [
+"Oktaviana and colleagues, 2024, Nature",
+"https://doi.org/10.1038/s41586-024-07541-7"
+],
+"checked": true
+},
+{
+"id": "hand",
+"words": [
+"HAND",
+"PALM"
+],
+"ya": 67800,
+"text": "On Muna Island in Indonesia, someone blew paint around a hand on a cave wall at least 67,800 years ago, the oldest known cave art.",
+"src": [
+"Oktaviana and colleagues, 2026, Nature",
+"https://doi.org/10.1038/s41586-025-09968-y"
+],
+"checked": true
+},
+{
+"id": "flute",
+"words": [
+"FLUTE",
+"MUSIC",
+"SONG"
+],
+"ya": 35000,
+"text": "At Hohle Fels Cave in Germany, people played flutes made of vulture bone and mammoth ivory at least 35,000 years ago.",
+"src": [
+"Conard and colleagues, 2009, Nature",
+"https://doi.org/10.1038/nature08169"
+],
+"checked": true
+},
+{
+"id": "rope",
+"words": [
+"ROPE",
+"CORD",
+"STRING",
+"KNOT"
+],
+"ya": 46500,
+"text": "At Abri du Maras in France, Neanderthals twisted plant fibres into a three-ply cord more than 40,000 years ago.",
+"src": [
+"Hardy and colleagues, 2020, Scientific Reports",
+"https://doi.org/10.1038/s41598-020-61839-w"
+],
+"checked": true
+},
+{
+"id": "glue",
+"words": [
+"GLUE",
+"TAR",
+"STICKY"
+],
+"ya": 200000,
+"text": "At Campitello in Italy, early humans used birch-bark tar as glue on stone tools about 200,000 years ago.",
+"src": [
+"Mazza and colleagues, 2006, Journal of Archaeological Science",
+"https://doi.org/10.1016/j.jas.2006.01.006"
+],
+"checked": true
+},
+{
+"id": "eggshell",
+"words": [
+"EGG",
+"WATER",
+"FLASK"
+],
+"ya": 60000,
+"text": "At Diepkloof Rock Shelter in South Africa, people carved patterns on ostrich eggshell water flasks about 60,000 years ago.",
+"src": [
+"Texier and colleagues, 2010, PNAS",
+"https://doi.org/10.1073/pnas.0913047107"
+],
+"checked": true
+},
+{
+"id": "pottery",
+"words": [
+"POT",
+"CLAY",
+"BOWL",
+"JAR"
+],
+"ya": 19500,
+"text": "At Xianrendong Cave in China, people who hunted and gathered made clay pots about 20,000 years ago, the oldest known pottery.",
+"src": [
+"Wu and colleagues, 2012, Science",
+"https://doi.org/10.1126/science.1218643"
+],
+"checked": true
+},
+{
+"id": "bread",
+"words": [
+"BREAD",
+"FLOUR",
+"BAKE"
+],
+"ya": 14400,
+"text": "At Shubayqa 1 in Jordan, hunter-gatherers baked flat bread from wild grains about 14,400 years ago, before farming began.",
+"src": [
+"Arranz-Otaegui and colleagues, 2018, PNAS",
+"https://doi.org/10.1073/pnas.1801071115"
+],
+"checked": true
+},
+{
+"id": "dog",
+"words": [
+"DOG",
+"PUPPY",
+"WOLF"
+],
+"ya": 14200,
+"text": "At Oberkassel in Germany, a sick puppy was cared for and buried with two people about 14,200 years ago, among the oldest known dogs.",
+"src": [
+"Janssens and colleagues, 2018, Journal of Archaeological Science",
+"https://doi.org/10.1016/j.jas.2018.01.004"
+],
+"checked": true
+},
+{
+"id": "cat",
+"words": [
+"CAT",
+"KITTEN"
+],
+"ya": 9500,
+"text": "At Shillourokambos on Cyprus, a cat was buried beside a person about 9,500 years ago, a sign cats and people were close.",
+"src": [
+"Vigne and colleagues, 2004, Science",
+"https://doi.org/10.1126/science.1095335"
+],
+"checked": true
+},
+{
+"id": "goat",
+"words": [
+"GOAT",
+"SHEEP",
+"HERD"
+],
+"ya": 10000,
+"text": "In the Zagros Mountains of Iran, people began herding and taming wild goats about 10,000 years ago.",
+"src": [
+"Zeder and Hesse, 2000, Science",
+"https://doi.org/10.1126/science.287.5461.2254"
+],
+"checked": true
+},
+{
+"id": "farm",
+"words": [
+"SEED",
+"FARM",
+"WHEAT",
+"PLANT",
+"GRAIN"
+],
+"ya": 11500,
+"text": "In the Fertile Crescent of the Middle East, people began planting wild wheat and barley about 11,500 years ago.",
+"src": [
+"Bar-Yosef, 2011, Current Anthropology",
+"https://doi.org/10.1086/659784"
+],
+"checked": true
+},
+{
+"id": "rice",
+"words": [
+"RICE",
+"PADDY"
+],
+"ya": 8000,
+"text": "In the Yangtze River valley of China, people were growing rice by about 8,000 years ago, slowly turning it into a crop.",
+"src": [
+"Gross and Zhao, 2014, PNAS",
+"https://doi.org/10.1073/pnas.1308942110"
+],
+"checked": true
+},
+{
+"id": "maize",
+"words": [
+"CORN",
+"MAIZE"
+],
+"ya": 8700,
+"text": "In the Balsas River valley of Mexico, people were grinding and growing maize about 8,700 years ago.",
+"src": [
+"Piperno and colleagues, 2009, PNAS",
+"https://doi.org/10.1073/pnas.0812525106"
+],
+"checked": true
+},
+{
+"id": "temple",
+"words": [
+"TEMPLE",
+"PILLAR"
+],
+"ya": 10900,
+"text": "At Göbekli Tepe in Turkey, people carved and raised huge T-shaped stone pillars between about 11,600 and 10,200 years ago.",
+"src": [
+"UNESCO World Heritage Centre, Göbekli Tepe",
+"https://whc.unesco.org/en/list/1572"
+],
+"checked": true
+},
+{
+"id": "town",
+"words": [
+"TOWN",
+"HOUSE",
+"HOME",
+"CITY"
+],
+"ya": 8800,
+"text": "At Çatalhöyük in Turkey, about 9,000 years ago, people lived in packed mud-brick houses with no streets and climbed in through the roof.",
+"src": [
+"UNESCO World Heritage Centre, Neolithic Site of Çatalhöyük",
+"https://whc.unesco.org/en/list/1405"
+],
+"checked": true
+},
+{
+"id": "silk",
+"words": [
+"SILK",
+"WORM"
+],
+"ya": 8500,
+"text": "At Jiahu in China, traces of silk were found in tombs about 8,500 years old, the oldest known signs of silk.",
+"src": [
+"Gong and colleagues, 2016, PLOS ONE",
+"https://doi.org/10.1371/journal.pone.0168042"
+],
+"checked": true
+},
+{
+"id": "cheese",
+"words": [
+"MILK",
+"CHEESE"
+],
+"ya": 7200,
+"text": "In Poland, farmers used clay pots full of little holes as strainers to make cheese more than 7,000 years ago.",
+"src": [
+"Salque and colleagues, 2013, Nature",
+"https://doi.org/10.1038/nature11698"
+],
+"checked": true
+},
+{
+"id": "copper",
+"words": [
+"COPPER",
+"METAL",
+"MELT"
+],
+"ya": 7000,
+"text": "At Belovode in Serbia, people heated green rocks in fire to get copper metal about 7,000 years ago, the oldest known smelting.",
+"src": [
+"Radivojević and colleagues, 2010, Journal of Archaeological Science",
+"https://doi.org/10.1016/j.jas.2010.06.012"
+],
+"checked": true
+},
+{
+"id": "gold",
+"words": [
+"GOLD",
+"RING"
+],
+"ya": 6500,
+"text": "At Varna in Bulgaria, people were buried with gold jewelry about 6,500 years ago, the oldest big hoard of worked gold.",
+"src": [
+"Higham and colleagues, 2007, Antiquity",
+"https://www.cambridge.org/core/journals/antiquity/article/new-perspectives-on-the-varna-cemetery-bulgaria-ams-dates-and-social-implications/0D02E895D9732774C4ED192C4D199417"
+],
+"checked": true
+},
+{
+"id": "wheel",
+"words": [
+"WHEEL",
+"CART",
+"ROLL"
+],
+"ya": 5200,
+"text": "In the Ljubljana Marshes in Slovenia, a wooden wheel with its axle survived in the mud for about 5,200 years, among the oldest wheels found.",
+"src": [
+"City Museum of Ljubljana (MGML), The Wheel - 5,200 Years",
+"https://mgml.si/en/city-museum/exhibitions/211/the-wheel-5200-years"
+],
+"checked": true
+},
+{
+"id": "bridge",
+"words": [
+"BRIDGE",
+"PATH",
+"TRACK"
+],
+"ya": 5833,
+"text": "In the Somerset Levels of England, people built the Sweet Track, a plank walkway over a swamp, in 3807 or 3806 BC.",
+"src": [
+"English Heritage, Prehistoric travel and networks",
+"https://www.english-heritage.org.uk/learn/story-of-england/prehistory/networks"
+],
+"checked": true
+},
+{
+"id": "horse",
+"words": [
+"HORSE",
+"RIDE"
+],
+"ya": 4000,
+"text": "From the grasslands by Russia's Volga and Don rivers, the horses we ride today spread across Asia and Europe about 4,000 years ago.",
+"src": [
+"Librado and colleagues, 2021, Nature",
+"https://doi.org/10.1038/s41586-021-04018-9"
+],
+"checked": true
+},
+{
+"id": "writing",
+"words": [
+"WRITE",
+"TABLET",
+"SIGN"
+],
+"ya": 5300,
+"text": "In Mesopotamia, now Iraq, people began writing by drawing pictures and numbers on clay tablets about 5,300 years ago.",
+"src": [
+"Spar, 2004, The Origins of Writing, The Metropolitan Museum of Art",
+"https://www.metmuseum.org/essays/the-origins-of-writing"
+],
+"checked": true
+},
+{
+"id": "alphabet",
+"words": [
+"LETTER",
+"ALPHABET",
+"WORD",
+"SPELL"
+],
+"ya": 3876,
+"text": "At Wadi el-Hol in Egypt, workers carved some of the oldest known alphabet letters on rock about 3,900 years ago.",
+"src": [
+"Darnell and colleagues, 2005, Annual of the American Schools of Oriental Research",
+"https://www.jstor.org/stable/3768583"
+],
+"checked": true
+},
+{
+"id": "iron",
+"words": [
+"IRON",
+"FORGE"
+],
+"ya": 3200,
+"text": "In the Middle East and southeast Europe, iron began to replace bronze for tools and weapons about 3,200 years ago.",
+"src": [
+"Encyclopaedia Britannica, What is the Iron Age?",
+"https://www.britannica.com/question/What-is-the-Iron-Age"
+],
+"checked": true
+},
+{
+"id": "coin",
+"words": [
+"COIN",
+"MONEY",
+"CASH"
+],
+"ya": 2650,
+"text": "In Lydia, now western Turkey, people made the first coins from electrum, a mix of gold and silver, more than 2,600 years ago.",
+"src": [
+"British Museum, A History of the World in 100 Objects (BBC)",
+"https://www.bbc.co.uk/programmes/b00qm8zg"
+],
+"checked": true
+},
+{
+"id": "paper",
+"words": [
+"PAPER",
+"MAP"
+],
+"ya": 2150,
+"text": "At Fangmatan in China, a scrap of hemp paper with a map drawn on it was found in a tomb about 2,150 years old.",
+"src": [
+"Encyclopaedia Britannica, Today in History: April 28",
+"https://www.britannica.com/today-in-history/April-28-Chinese-Tomb-Discovery-Upends-the-History-of-Paper"
+],
+"checked": true
+},
+{
+"id": "print",
+"words": [
+"PRINT",
+"BOOK",
+"PAGE"
+],
+"ya": 1158,
+"text": "In China, a Buddhist scroll called the Diamond Sutra was printed in 868 CE, the oldest dated printed book.",
+"src": [
+"British Library, International Dunhuang Programme",
+"https://idp.bl.uk/discover/learning/buddhism-on-the-silk-roads/articles/buddhism-on-the-ground/buddhist-texts-the-diamond-sutra"
+],
+"checked": true
+},
+{
+"id": "mammoth",
+"words": [
+"MAMMOTH",
+"TUSK",
+"IVORY"
+],
+"ya": 4000,
+"text": "On Wrangel Island in the Arctic, the last woolly mammoths lived on until about 4,000 years ago.",
+"src": [
+"Vartanyan and colleagues, 1993, Nature",
+"https://doi.org/10.1038/362337a0"
+],
+"checked": true
+},
+{
+"id": "ice",
+"words": [
+"ICE",
+"SNOW",
+"COLD"
+],
+"ya": 22750,
+"text": "Across the world, giant ice sheets were at their biggest between about 26,500 and 19,000 years ago, in the last Ice Age.",
+"src": [
+"Clark and colleagues, 2009, Science",
+"https://doi.org/10.1126/science.1172873"
+],
+"checked": true
+},
+{
+"id": "salt",
+"words": [
+"SALT",
+"SALTY"
+],
+"ya": 7000,
+"text": "At Provadia-Solnitsata in Bulgaria, people boiled salty spring water in clay pots to make salt, from about 7,600 to 6,400 years ago.",
+"src": [
+"Provadia-Solnitsata project (Bulgarian Academy of Sciences)",
+"https://www.provadia-solnitsata.com/en/about"
+],
+"checked": true
+},
+{
+"id": "glass",
+"words": [
+"GLASS",
+"SAND"
+],
+"ya": 4000,
+"text": "In Mesopotamia, now Iraq, craftspeople first made glass by melting sand with soda and lime about 4,000 years ago.",
+"src": [
+"Corning Museum of Glass, Origins of Glassmaking",
+"https://whatson.cmog.org/exhibitions-galleries/origins-glassmaking"
+],
+"checked": true
+},
+{
+"id": "needle",
+"words": [
+"NEEDLE",
+"SEW",
+"THREAD"
+],
+"ya": 40000,
+"text": "At Denisova Cave in Siberia, people sewed with tiny bone needles that had eyes for thread about 40,000 years ago.",
+"src": [
+"Gilligan and colleagues, 2024, Science Advances",
+"https://doi.org/10.1126/sciadv.adp2887"
+],
+"checked": true
+},
+{
+"id": "cave",
+"words": [
+"CAVE",
+"LION"
+],
+"ya": 35500,
+"text": "In Chauvet Cave in France, people drew lions, horses and rhinos on the walls between about 37,000 and 34,000 years ago.",
+"src": [
+"Quiles and colleagues, 2016, PNAS",
+"https://doi.org/10.1073/pnas.1523158113"
+],
+"checked": true
+}
+]
